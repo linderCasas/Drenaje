@@ -3,64 +3,122 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Reporte web de costos, pagos y disponibilidad del servicio de maquinaria.">
-  <title>Maquinaria | Reporte de gestión</title>
+  <meta name="description" content="Reporte gerencial del presupuesto y la ejecución real del proyecto Drenaje.">
+  <title>Reporte resumen de presupuesto | Proyecto Drenaje</title>
   <style>
     :root {
       --ink: #172a3a;
       --muted: #627486;
       --line: #e2e9ed;
-      --paper: #fff;
+      --paper: #ffffff;
       --canvas: #f3f6f7;
-      --navy: #18364a;
-      --teal: #167c73;
-      --teal-soft: #e5f4f1;
-      --amber: #bf7620;
-      --amber-soft: #fff3df;
-      --red: #bd4d43;
-      --blue: #4479a0;
+      --navy: #1A428A;
+      --teal: #1A428A;
+      --teal-soft: #eef3fa;
+      --amber: #c1121f;
+      --amber-soft: #fae9eb;
+      --red: #c1121f;
+      --blue: #1A428A;
+      --cyan-light: #eaf0fb;
+      --cyan: #00b4d8;
+      --white: #ffffff;
       --shadow: 0 12px 32px rgba(27, 55, 74, .07);
     }
     * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
     body { margin: 0; background: var(--canvas); color: var(--ink); font: 15px/1.55 "Segoe UI", Arial, sans-serif; }
-    .page { width: min(1120px, calc(100% - 40px)); margin: 0 auto; padding: 38px 0 54px; }
+    .page { width: calc(100% - 248px); max-width: none; margin: 0 24px 0 224px; padding: 38px 24px 54px; }
+    .sidebar { position: fixed; inset: 0 auto 0 0; z-index: 5; display: flex; width: 224px; flex-direction: column; gap: 18px; background: var(--navy); padding: 30px 16px; color: #fff; }
+    .sidebar-label { margin: 0 0 2px 10px; color: #c9d7f0; font-size: 10px; font-weight: 750; letter-spacing: .12em; }
+    .sidebar nav { display: grid; gap: 7px; }
+    .sidebar-link { display: flex; align-items: center; gap: 12px; min-height: 46px; border-radius: 9px; padding: 9px 10px; color: #e8eef9; font-size: 13px; font-weight: 650; text-decoration: none; }
+    .sidebar-link:hover, .sidebar-link.active { background: var(--cyan-light); color: var(--navy); }
+    .sidebar-index { color: #b9c9e4; font-size: 10px; font-weight: 750; }
+    .sidebar-link.active .sidebar-index, .sidebar-link:hover .sidebar-index { color: var(--red); }
+    #resumen, #maquinaria { scroll-margin-top: 22px; }
+    .report-view[hidden] { display: none; }
+    .machinery-section { min-height: 220px; margin-top: 22px; padding: 22px 23px; }
+    .machinery-section h2 { margin: 0; }
     .topline { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 25px; }
     .brand { display: flex; align-items: center; gap: 11px; color: var(--navy); font-size: 13px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
-    .brand-logo { display: block; width: 55px; height: 74px; object-fit: contain; }
+    .brand-copy { display: grid; gap: 2px; }
+    .brand-title { color: var(--navy); font-size: 13px; font-weight: 800; letter-spacing: .07em; }
+    .brand-subtitle { color: var(--navy); font-size: 10px; font-weight: 750; letter-spacing: .14em; }
+    .brand-subtitle span { color: var(--cyan); }
+    .brand-logo { display: block; width: 38px; height: 52px; object-fit: contain; }
+    .top-actions { display: flex; align-items: center; gap: 9px; }
+    .pdf-export { border: 0; border-radius: 9px; background: var(--red); color: #fff; cursor: pointer; font: inherit; font-size: 13px; font-weight: 700; padding: 10px 14px; }
+    .pdf-export:hover { filter: brightness(.92); }
     .refresh { border: 1px solid #cbd6dc; border-radius: 9px; background: var(--paper); color: var(--navy); cursor: pointer; font: inherit; font-size: 13px; font-weight: 650; padding: 9px 13px; }
     .refresh:hover { border-color: var(--teal); color: var(--teal); }
     .hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; margin: 0 0 25px; }
     .eyebrow { margin: 0 0 7px; color: var(--teal); font-size: 12px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
     h1 { margin: 0; color: var(--navy); font-size: clamp(30px, 4vw, 43px); letter-spacing: -.04em; line-height: 1.08; }
     .subtitle { max-width: 700px; margin: 12px 0 0; color: var(--muted); }
-    .date-chip { flex: 0 0 auto; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); padding: 11px 15px; color: var(--muted); font-size: 12px; }
-    .date-chip strong { display: block; margin-top: 2px; color: var(--ink); font-size: 14px; }
+    .date-chip { display: flex; flex: 0 0 auto; align-items: center; gap: 9px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); padding: 8px 11px; color: var(--muted); font-size: 11px; }
+    .date-chip svg { width: 18px; height: 18px; flex: 0 0 18px; color: var(--cyan); }
+    .date-chip strong { display: block; color: var(--ink); font-size: 12px; }
     .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
     .logistics-panel { margin-bottom: 18px; }
+    .table-section-heading { margin: 0; }
+    .table-section-heading h3 { margin: 0; color: var(--navy); font-size: 17px; letter-spacing: -.015em; }
+    .table-section-heading p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
     .logistics-table-wrap { overflow-x: auto; }
     .logistics-table { width: 100%; min-width: 820px; border-collapse: collapse; font-size: 13px; }
+    .logistics-table.machinery-table { width: 100%; min-width: 0; table-layout: fixed; }
+    .machinery-table { width: 100%; min-width: 0; table-layout: fixed; }
+    .machinery-table th, .machinery-table td { text-align: left; white-space: normal; overflow-wrap: anywhere; vertical-align: middle; }
+    .machinery-table th:nth-child(1), .machinery-table td:nth-child(1) { width: 9%; }
+    .machinery-table th:nth-child(2), .machinery-table td:nth-child(2) { width: 9%; }
+    .machinery-table th:nth-child(3), .machinery-table td:nth-child(3) { width: 8%; }
+    .machinery-table th:nth-child(4), .machinery-table td:nth-child(4) { width: 8%; text-align: right; }
+    .machinery-table th:nth-child(5), .machinery-table td:nth-child(5) { width: 11%; }
+    .machinery-table th:nth-child(6), .machinery-table td:nth-child(6) { width: 19%; }
+    .machinery-table th:nth-child(7), .machinery-table td:nth-child(7) { width: 9%; text-align: right; }
+    .machinery-table th:nth-child(8), .machinery-table td:nth-child(8) { width: 17%; }
+    .machinery-table th:nth-child(9), .machinery-table td:nth-child(9) { width: 10%; text-align: right; }
+    .active-badge { display: inline-flex; max-width: 100%; align-items: center; gap: 4px; border-radius: 999px; background: #90e0ef; padding: 4px 6px; color: var(--navy); font-size: 10px; font-weight: 800; }
+    .active-icon { display: inline-grid; width: 15px; height: 15px; flex: 0 0 15px; place-items: center; border-radius: 50%; background: #fff; color: #287444; font-size: 10px; }
+    .inactive-mark { display: inline-block; border-radius: 999px; background: #fae9eb; padding: 4px 7px; color: var(--red); font-size: 10px; font-weight: 800; }
+    .machinery-table .receipt-status { max-width: 100%; white-space: normal; }
+    .machinery-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+    .filter-option { border: 1px solid #d8e0e9; border-radius: 8px; background: #fff; padding: 7px 11px; color: var(--navy); cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; }
+    .filter-option:hover, .filter-option[aria-pressed="true"] { border-color: var(--cyan); background: #90e0ef; }
+    .filter-icon { width: 13px; height: 13px; margin-right: 4px; vertical-align: -2px; }
+    .card.plan-panel { overflow: hidden; padding: 0; }
+    .plan-heading { padding: 20px 23px 14px; }
+    .plan-image { display: block; width: 100%; height: auto; background: #fff; }
+    .receipt-status { display: inline-flex; align-items: center; gap: 7px; border-radius: 999px; background: #f0f3f7; padding: 5px 9px; color: #526273; font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .receipt-status.complete { background: #eaf4ed; color: #287444; }
+    .receipt-status.pending { background: #fff5df; color: #946412; }
+    .receipt-icon { display: inline-grid; width: 17px; height: 17px; place-items: center; border-radius: 50%; background: #fff; font-size: 12px; line-height: 1; }
     .logistics-table th, .logistics-table td { border-bottom: 1px solid var(--line); padding: 12px 14px; text-align: left; }
-    .logistics-table th { background: #f7f9fa; color: var(--muted); font-size: 11px; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; }
+    .logistics-table th { background: var(--navy); color: #fff; font-size: 11px; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; }
     .logistics-table td:first-child, .logistics-table th:first-child { width: 52px; text-align: center; }
-    .logistics-table td:nth-child(n+4), .logistics-table th:nth-child(n+4) { text-align: right; white-space: nowrap; }
+    .logistics-table td:nth-child(n+3), .logistics-table th:nth-child(n+3) { text-align: right; white-space: nowrap; }
     .logistics-table tfoot td { border-bottom: 0; background: var(--teal-soft); color: var(--navy); font-weight: 750; }
-    .matrix-groups { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; }
-    .matrix-partida + .matrix-partida { border-top: 1px solid var(--line); }
-    .matrix-groups details > summary { display: flex; justify-content: space-between; align-items: center; gap: 14px; cursor: pointer; list-style: none; }
-    .matrix-groups summary::-webkit-details-marker { display: none; }
-    .matrix-groups details > summary::before { content: "+"; flex: 0 0 18px; color: var(--teal); font-size: 18px; font-weight: 700; text-align: center; }
-    .matrix-groups details[open] > summary::before { content: "−"; }
-    .matrix-partida > summary { background: #f7f9fa; padding: 13px 15px; color: var(--navy); font-size: 13px; font-weight: 750; }
-    .matrix-fund { margin-left: 18px; border-top: 1px solid var(--line); }
-    .matrix-fund > summary { padding: 10px 14px; color: var(--ink); font-size: 12px; font-weight: 650; }
-    .matrix-summary-total { color: var(--muted); font-size: 11px; font-weight: 650; text-align: right; white-space: nowrap; }
-    .detail-table-wrap { max-height: 360px; overflow: auto; margin: 0 12px 12px 14px; border: 1px solid var(--line); border-radius: 8px; }
-    .detail-table { width: 100%; min-width: 560px; border-collapse: collapse; font-size: 12px; }
-    .detail-table th, .detail-table td { border-bottom: 1px solid var(--line); padding: 9px 11px; text-align: left; vertical-align: top; }
-    .detail-table th { position: sticky; top: 0; z-index: 1; background: #f7f9fa; color: var(--muted); font-size: 11px; font-weight: 750; text-transform: uppercase; }
-    .detail-table td:last-child, .detail-table th:last-child { text-align: right; white-space: nowrap; }
-    .matrix-total { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; border-radius: 9px; background: var(--teal-soft); padding: 12px 15px; color: var(--navy); font-size: 13px; font-weight: 750; }
-    .logistics-source { margin: 13px 0 0; color: var(--muted); font-size: 11px; }
+    .logistics-table tfoot td:nth-child(n+3) { color: var(--red); }
+    .logistics-table.machinery-table th, .logistics-table.machinery-table td { text-align: left; white-space: normal; overflow-wrap: anywhere; }
+    .logistics-table.machinery-table th:first-child, .logistics-table.machinery-table td:first-child { width: 9%; text-align: left; }
+    .logistics-table.machinery-table th:nth-child(4), .logistics-table.machinery-table td:nth-child(4), .logistics-table.machinery-table th:nth-child(7), .logistics-table.machinery-table td:nth-child(7), .logistics-table.machinery-table th:nth-child(9), .logistics-table.machinery-table td:nth-child(9) { text-align: right; }
+    .expand-button { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; border: 0; background: transparent; color: var(--navy); cursor: pointer; font: inherit; font-weight: 700; padding: 0; text-align: left; }
+    .expand-icon { display: inline-grid; width: 22px; height: 22px; flex: 0 0 22px; place-items: center; border-radius: 50%; background: var(--teal-soft); color: var(--red); font-size: 16px; }
+    .expanded-row[hidden] { display: none; }
+    .expanded-row > td { padding: 0; background: #f8faff; }
+    .expanded-detail { max-height: 360px; overflow: auto; padding: 10px 14px 14px; }
+    .expanded-header, .expanded-record { display: grid; grid-template-columns: minmax(100px, .8fr) minmax(100px, .8fr) minmax(200px, 1.7fr) minmax(120px, auto); align-items: start; gap: 12px; padding: 9px 10px; }
+    .expanded-header.grouped, .expanded-record.grouped { grid-template-columns: minmax(100px, .8fr) minmax(200px, 1.7fr) minmax(120px, auto); }
+    .fund-group + .fund-group { margin-top: 12px; }
+    .fund-group-title { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; border: 0; border-left: 3px solid var(--teal); background: #f4f7fb; padding: 8px 10px; color: var(--navy); cursor: pointer; font: inherit; font-size: 11px; font-weight: 750; text-align: left; }
+    .fund-group-title:hover { background: #eaf0f8; }
+    .fund-group-label { display: flex; align-items: center; gap: 8px; }
+    .fund-toggle-icon { display: inline-grid; width: 19px; height: 19px; place-items: center; border-radius: 50%; background: var(--paper); color: var(--navy); font-size: 13px; }
+    .fund-details[hidden] { display: none; }
+    .fund-group-count { color: var(--muted); font-size: 10px; font-weight: 600; white-space: nowrap; }
+    .expanded-header { position: sticky; top: 0; z-index: 1; background: var(--teal-soft); color: var(--navy); font-size: 10px; font-weight: 750; }
+    .expanded-record { border-bottom: 1px solid var(--line); color: var(--ink); font-size: 11px; }
+    .expanded-record span:last-child, .expanded-header span:last-child { text-align: right; white-space: nowrap; }
+    .expanded-record span:last-child { color: var(--red); font-weight: 650; }
     .card { border: 1px solid var(--line); border-radius: 15px; background: var(--paper); box-shadow: var(--shadow); }
     .kpi { min-height: 138px; padding: 18px 19px; }
     .kpi-label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 650; }
@@ -72,6 +130,7 @@
     .bottom-grid { grid-template-columns: 1fr 1fr; }
     .panel { padding: 22px 23px; }
     .panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 20px; }
+    .panel-tools { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 9px; }
     h2 { margin: 0; color: var(--navy); font-size: 17px; letter-spacing: -.015em; }
     .panel-subtitle { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
     .tag { flex: 0 0 auto; border-radius: 99px; background: #eef4f6; padding: 5px 9px; color: var(--muted); font-size: 11px; font-weight: 700; }
@@ -119,13 +178,33 @@
     .method strong { color: var(--ink); }
     footer { display: flex; justify-content: space-between; gap: 16px; margin-top: 20px; color: var(--muted); font-size: 11px; }
     @media (max-width: 780px) {
+      .sidebar { position: sticky; inset: auto; width: 100%; flex-direction: row; align-items: center; gap: 10px; padding: 9px 14px; }
+      .sidebar-label { display: none; }
+      .sidebar nav { display: flex; gap: 5px; overflow-x: auto; }
+      .sidebar-link { min-height: 40px; flex: 0 0 auto; padding: 7px 10px; }
+      .page { width: 100%; max-width: none; margin: 0; padding: 22px 14px 40px; }
       .kpis { grid-template-columns: repeat(2, 1fr); }
       .grid-two, .bottom-grid { grid-template-columns: 1fr; }
       .hero { align-items: flex-start; flex-direction: column; gap: 15px; }
-      .date-chip { width: 100%; }
+      .topline { align-items: flex-start; flex-direction: column; gap: 12px; }
+      .panel-head { flex-direction: column; align-items: stretch; }
+      .panel-tools { justify-content: flex-start; }
+      .machinery-table { font-size: 10px; }
+      .machinery-table th:nth-child(1), .machinery-table td:nth-child(1) { width: 16%; }
+      .machinery-table th:nth-child(2), .machinery-table td:nth-child(2) { width: 8%; }
+      .machinery-table th:nth-child(3), .machinery-table td:nth-child(3) { width: 8%; }
+      .machinery-table th:nth-child(4), .machinery-table td:nth-child(4) { width: 8%; }
+      .machinery-table th:nth-child(5), .machinery-table td:nth-child(5) { width: 11%; }
+      .machinery-table th:nth-child(6), .machinery-table td:nth-child(6) { width: 14%; }
+      .machinery-table th:nth-child(7), .machinery-table td:nth-child(7) { width: 8%; }
+      .machinery-table th:nth-child(8), .machinery-table td:nth-child(8) { width: 19%; }
+      .machinery-table th:nth-child(9), .machinery-table td:nth-child(9) { width: 8%; }
+      .logistics-table.machinery-table th:first-child, .logistics-table.machinery-table td:first-child { width: 16%; }
+      .machinery-table .receipt-status { padding: 3px 4px; font-size: 9px; }
+      .active-badge { gap: 2px; padding: 3px 4px; font-size: 9px; }
     }
     @media (max-width: 520px) {
-      .page { width: min(100% - 24px, 1120px); padding-top: 20px; }
+      .page { width: 100%; padding: 20px 12px 36px; }
       .topline { margin-bottom: 22px; }
       .brand { font-size: 11px; }
       .refresh { padding: 8px 10px; }
@@ -144,182 +223,216 @@
       footer { flex-direction: column; }
     }
     @media print {
+      @page { size: A4 landscape; margin: 12mm; }
       body { background: #fff; }
-      .page { width: 100%; padding: 0; }
-      .refresh { display: none; }
+      body, .page { width: 100%; max-width: none; padding: 0; }
+      .page { margin: 0; }
+      .sidebar { display: none; }
+      .top-actions { display: none; }
       .card { box-shadow: none; break-inside: avoid; }
-      .grid-two, .bottom-grid, .method { break-inside: avoid; }
+      .logistics-panel { break-inside: auto; }
+      .logistics-table { min-width: 0; font-size: 9px; }
+      .logistics-table th, .logistics-table td { padding: 6px 7px; }
+      .logistics-table thead { display: table-header-group; }
+      .expanded-row[hidden] { display: table-row !important; }
+      .expanded-detail { max-height: none; overflow: visible; padding: 5px; }
+      .expanded-header { position: static; }
+      .expanded-header, .expanded-record { grid-template-columns: .8fr .8fr 1.7fr auto; gap: 6px; padding: 4px 5px; font-size: 8px; }
+      .expanded-header.grouped, .expanded-record.grouped { grid-template-columns: .8fr 1.7fr auto; }
+      .expand-icon { display: none; }
+      .fund-toggle-icon { display: none; }
+      .fund-details[hidden] { display: block !important; }
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
   </style>
 </head>
 <body>
+  <aside class="sidebar">
+    <p class="sidebar-label">SECCIONES DEL REPORTE</p>
+    <nav aria-label="Secciones del reporte">
+      <a class="sidebar-link active" href="#resumen"><span class="sidebar-index">01</span><span>Resumen</span></a>
+      <a class="sidebar-link" href="#maquinaria"><span class="sidebar-index">02</span><span>Maquinaria</span></a>
+      <a class="sidebar-link" href="#plano"><span class="sidebar-index">03</span><span>Plano</span></a>
+    </nav>
+  </aside>
   <main class="page">
     <div class="topline">
       <div class="brand">
         <img class="brand-logo" src="{{ url_for('static', filename='logo_unifrutti.png') }}" alt="Unifrutti">
-        Control de maquinaria
+        <span class="brand-copy"><span class="brand-title">PROYECTO DRENAJE INTEGRAL</span><span class="brand-subtitle">PROYECTOS <span>2026</span></span></span>
       </div>
-      <button class="refresh" type="button" onclick="window.location.reload()">Actualizar reporte</button>
+      <div class="date-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M16 3v4M8 3v4M3 10h18"></path></svg>
+        <span>Última actualización<strong>{{ report.end_date }}</strong></span>
+      </div>
     </div>
 
-    <header class="hero">
-      <div>
-        <p class="eyebrow">Reporte de maquinaria</p>
-      </div>
-      <div class="date-chip">Corte financiero<strong>{{ report.end_date }}</strong></div>
-    </header>
-
-    <section class="card panel logistics-panel" aria-labelledby="logistics-title">
+    <section class="report-view" id="resumen" aria-label="Resumen">
+    <section class="card panel logistics-panel" aria-label="Resumen de presupuesto">
       <div class="panel-head">
-        <div>
-          <h2 id="logistics-title">Presupuesto y ejecutado real</h2>
+        <div class="table-section-heading">
+          <h3>Detalle de presupuesto por partida</h3>
+          <p>Selecciona una partida para consultar fundos, órdenes, proveedores y costos.</p>
         </div>
-        <span class="tag">PROYECTO = DRENAJE</span>
+        <div class="panel-tools">
+          <div class="top-actions">
+            <button class="pdf-export" type="button" onclick="window.print()">Exportar a PDF</button>
+            <button class="refresh" type="button" onclick="window.location.reload()">Actualizar reporte</button>
+          </div>
+        </div>
       </div>
       <div class="logistics-table-wrap">
         <table class="logistics-table">
-          <thead><tr><th scope="col">ID</th><th scope="col">ACTIVIDAD (GANTT)</th><th scope="col">PARTIDA LOGÍSTICA</th><th scope="col">PRESUPUESTO (USD)</th><th scope="col">EJECUTADO REAL (USD)</th></tr></thead>
+          <thead><tr><th scope="col">ID</th><th scope="col">ACTIVIDAD (GANTT)</th><th scope="col">PRESUPUESTO (USD)</th><th scope="col">EJECUTADO REAL (USD)</th><th scope="col">DISPONIBLE ($)</th></tr></thead>
           <tbody>
             {% for item in logistics.activity_costs %}
-            <tr><td>{{ item.activity_id }}</td><td>{{ item.activity }}</td><td>{{ item.partida }}</td><td>{{ item.budget_usd }}</td><td>{{ item.executed_usd }}</td></tr>
-            {% endfor %}
-          </tbody>
-          <tfoot><tr><td colspan="3">TOTAL GENERAL</td><td>{{ logistics.total_budget_usd }}</td><td>{{ logistics.total_executed_usd }}</td></tr></tfoot>
-        </table>
-      </div>
-    </section>
-
-    <section class="card panel logistics-detail-panel" aria-labelledby="logistics-detail-title">
-      <div class="panel-head">
-        <div><h2 id="logistics-detail-title">Detalle de seguimiento logístico</h2></div>
-      </div>
-      <div class="matrix-groups">
-        {% for partida in logistics.partida_groups %}
-        <details class="matrix-partida">
-          <summary><span>{{ partida.partida }}</span><span class="matrix-summary-total">{{ partida.records }} registros · {{ partida.total_usd }}</span></summary>
-          {% for fund in partida.funds %}
-          <details class="matrix-fund">
-            <summary><span>{{ fund.fund }}</span><span class="matrix-summary-total">{{ fund.records|length }} registros · {{ fund.total_usd }}</span></summary>
-            <div class="detail-table-wrap">
-              <table class="detail-table">
-                <thead><tr><th scope="col">NRO ORDEN</th><th scope="col">PROVEEDOR</th><th scope="col">TOTAL $</th></tr></thead>
-                <tbody>
-                  {% for item in fund.records %}
-                  <tr><td>{{ item.order_number }}</td><td>{{ item.supplier }}</td><td>{{ item.total_usd }}</td></tr>
+            <tr>
+              <td>{{ item.activity_id }}</td>
+              <td>
+                {% if item.details %}
+                <button class="expand-button" type="button" aria-expanded="false" aria-controls="details-{{ item.activity_id }}" onclick="toggleActivityDetails(this)">
+                  <span>{{ item.activity }}</span><span class="expand-icon" aria-hidden="true">+</span>
+                </button>
+                {% else %}
+                {{ item.activity }}
+                {% endif %}
+              </td>
+              <td>{{ item.budget_usd }}</td>
+              <td>{{ item.executed_usd }}</td>
+              <td>{{ item.available_usd }}</td>
+            </tr>
+            {% if item.details %}
+            <tr class="expanded-row" id="details-{{ item.activity_id }}" hidden>
+              <td colspan="5">
+                <div class="expanded-detail">
+                  {% if item.group_details_by_fund %}
+                  {% for fund, fund_details in item.details|groupby('fund') %}
+                  <div class="fund-group">
+                    <button class="fund-group-title" type="button" aria-expanded="true" aria-controls="fund-{{ item.activity_id }}-{{ loop.index }}" onclick="toggleFundDetails(this)">
+                      <span class="fund-group-label"><span class="fund-toggle-icon" aria-hidden="true">−</span><span>FUNDO: {{ fund }}</span></span>
+                      <span class="fund-group-count">{{ fund_details|length }} registros</span>
+                    </button>
+                    <div class="fund-details" id="fund-{{ item.activity_id }}-{{ loop.index }}">
+                      <div class="expanded-header grouped"><span>NRO DE ORDEN</span><span>PROVEEDOR</span><span>COSTO</span></div>
+                      {% for detail in fund_details %}
+                      <div class="expanded-record grouped"><span>{{ detail.order_number }}</span><span>{{ detail.supplier }}</span><span>{{ detail.total_usd }}</span></div>
+                      {% endfor %}
+                    </div>
+                  </div>
                   {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </details>
-          {% endfor %}
-        </details>
-        {% endfor %}
-      </div>
-      <div class="matrix-total"><span>TOTAL GENERAL</span><span>{{ logistics.detail_total_usd }}</span></div>
-    </section>
-
-    <section class="kpis" aria-label="Indicadores principales">
-      <article class="card kpi">
-        <div class="kpi-label"><span class="kpi-icon">S/</span> Costo acumulado</div>
-        <div class="kpi-value">{{ report.cost_total }}</div>
-        <div class="kpi-foot">{{ report.cost_usd }} reportados</div>
-      </article>
-      <article class="card kpi">
-        <div class="kpi-label"><span class="kpi-icon">◷</span> Horas ejecutadas</div>
-        <div class="kpi-value">{{ report.hours }}</div>
-        <div class="kpi-foot">{{ report.parts }} partes · {{ report.hours_per_part }} promedio con horas &gt; 0</div>
-      </article>
-      <article class="card kpi">
-        <div class="kpi-label"><span class="kpi-icon">↗</span> Avance registrado</div>
-        <div class="kpi-value">{{ report.meters }}</div>
-        <div class="kpi-foot">Costo referencial: {{ report.cost_per_meter }}</div>
-      </article>
-      <article class="card kpi alert">
-        <div class="kpi-label"><span class="kpi-icon">!</span> Pendiente de pago</div>
-        <div class="kpi-value">{{ report.pending }}</div>
-        <div class="kpi-foot">{{ report.pending_percent }} del costo total</div>
-      </article>
-    </section>
-
-    <div class="grid-two">
-      <section class="card panel">
-        <div class="panel-head"><div><h2>Estado de pagos</h2><p class="panel-subtitle">Distribución del costo acumulado al {{ report.end_date }}</p></div><span class="tag">Soles (S/)</span></div>
-        <div class="payment-layout">
-          <div class="legend">
-            <div class="legend-row"><span class="legend-dot"></span><span class="legend-name">Pagado</span><span class="legend-value">{{ report.paid }}<small>{{ report.paid_percent }}</small></span></div>
-            <div class="legend-row"><span class="legend-dot pending"></span><span class="legend-name">Pendiente</span><span class="legend-value">{{ report.pending }}<small>{{ report.pending_percent }}</small></span></div>
-          </div>
-        </div>
-        <p class="rate-note">Tarifa ponderada: <strong>{{ report.hours_with_tariff_rate }}</strong> para horas valorizadas. Hay <strong>{{ report.unpriced_hours }} sin valorizar</strong>; al incluirlas, costo total ÷ horas equivale a {{ report.blended_rate }}.</p>
-      </section>
-
-      <section class="card panel">
-        <div class="panel-head"><div><h2>Disponibilidad de equipos</h2><p class="panel-subtitle">Parte diario del {{ report.daily_date }}</p></div><span class="tag">{{ report.scheduled }} programados</span></div>
-        <div class="availability-layout">
-          <div class="machine-counts">
-            <div class="count-row"><span>Disponibilidad</span><strong>{{ report.availability }}</strong></div>
-            <div class="count-row"><span>Operativos</span><strong>{{ report.operational }} equipos</strong></div>
-            <div class="count-row"><span>No operativos</span><strong class="down">{{ report.nonoperational }} equipos</strong></div>
-            <div class="count-row"><span>Equipos listados en Mosqueta</span><strong>{{ report.mosqueta_operational }} de {{ report.mosqueta_total }} operativos</strong></div>
-          </div>
-        </div>
-        <div class="reasons" aria-label="Motivos de no operatividad">
-          {% for reason in report.stop_reasons %}
-          <div class="reason"><span class="reason-label">{{ reason.label }}</span><span class="reason-count">{{ reason.count }}</span></div>
-          {% endfor %}
-        </div>
-        <table class="stop-table">
-          <thead><tr><th>Equipo</th><th>Fundo / proveedor</th><th>Motivo</th></tr></thead>
-          <tbody>
-            {% for stop in report.stop_records %}
-            <tr><td>{{ stop.machine }}</td><td>{{ stop.fund }} · {{ stop.provider }}</td><td>{{ stop.reason or "Sin motivo registrado" }}</td></tr>
+                  {% else %}
+                  <div class="expanded-header"><span>FUNDO</span><span>NRO DE ORDEN</span><span>PROVEEDOR</span><span>COSTO</span></div>
+                  {% for detail in item.details %}
+                  <div class="expanded-record"><span>{{ detail.fund }}</span><span>{{ detail.order_number }}</span><span>{{ detail.supplier }}</span><span>{{ detail.total_usd }}</span></div>
+                  {% endfor %}
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endif %}
             {% endfor %}
           </tbody>
+          <tfoot><tr><td colspan="2">TOTAL GENERAL</td><td>{{ logistics.total_budget_usd }}</td><td>{{ logistics.total_executed_usd }}</td><td>{{ logistics.total_available_usd }}</td></tr></tfoot>
         </table>
-      </section>
-    </div>
-
-    <section class="card panel quality-panel">
-      <div class="panel-head"><div><h2>Calidad y completitud de registros</h2><p class="panel-subtitle">{{ report.parts }} partes incluidos en el corte financiero</p></div><span class="tag">Requiere conciliación</span></div>
-      <div class="quality-grid">
-        {% for metric in report.quality_metrics %}
-        <div class="quality-item">
-          <div class="quality-number">{{ metric.count }} <small>· {{ metric.display }}</small></div>
-          <div class="quality-name">{{ metric.label }}</div>
-        </div>
-        {% endfor %}
       </div>
-      <p class="quality-note">También se registran {{ report.missing_fund }} partes sin fundo y {{ report.zero_hour_parts }} partes con cero horas ({{ report.zero_hour_percent }}). La falta de marca de pago no confirma que un parte esté impago.</p>
+    </section>
     </section>
 
-    <div class="bottom-grid">
-      <section class="card panel">
-        <div class="panel-head"><div><h2>Acciones recomendadas</h2><p class="panel-subtitle">Prioridades para Finanzas, Logística y Operaciones</p></div></div>
-        <ol class="action-list">
-          <li><span class="action-number">1</span><span><strong>Conciliar pagos:</strong> validar {{ report.pending }} pendientes con facturas y órdenes de compra.</span></li>
-          <li><span class="action-number">2</span><span><strong>Completar los partes:</strong> registrar tarifas, estados y fundos; priorizar las {{ report.unpriced_hours }} sin valorizar.</span></li>
-          <li><span class="action-number">3</span><span><strong>Recuperar disponibilidad:</strong> atender los motivos de parada e informar la solución en el parte diario.</span></li>
-          <li><span class="action-number">4</span><span><strong>Revisar dependencia:</strong> evaluar contingencia para {{ report.vendor }}, que concentra {{ report.vendor_share }} del costo.</span></li>
-        </ol>
-      </section>
-
-      <section class="card panel">
-        <div class="panel-head"><div><h2>Alertas de gestión</h2><p class="panel-subtitle">Puntos que requieren validar el dato fuente</p></div></div>
-        <div class="risk-list">
-          <div class="risk red"><strong>Baja disponibilidad</strong>{{ report.nonoperational }} de {{ report.scheduled }} equipos estuvieron no operativos el {{ report.daily_date }}.</div>
-          <div class="risk"><strong>Concentración de costo</strong>{{ report.vendor }} representa {{ report.vendor_share }} del costo según el detalle por proveedor.</div>
-          <div class="risk"><strong>Órdenes de compra</strong>Revisar las OC {{ report.purchase_orders }}. El indicador fuente muestra “{{ report.purchase_order_status }}” evaluables.</div>
-          {% if report.has_formula_errors %}
-          <div class="risk"><strong>Error en hoja fuente</strong>Algunos mensajes y decisiones del “Reporte Ejecutivo” muestran #VALUE!; no se usaron como cifras válidas.</div>
-          {% endif %}
+    <section class="report-view" id="maquinaria" aria-label="Reporte de maquinaria" hidden>
+      <section class="card panel logistics-panel" aria-label="Reporte de maquinaria">
+        <div class="panel-head">
+          <div class="table-section-heading"><h3>Reporte de maquinaria</h3></div>
+          <div class="machinery-filter" role="group" aria-label="Filtrar maquinaria">
+            <button class="filter-option" type="button" data-machinery-filter="all" aria-pressed="true">Todos</button>
+            <button class="filter-option" type="button" data-machinery-filter="active" aria-pressed="false"><svg class="filter-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M2 3h12L9.5 8v4l-3 1V8L2 3z" stroke-linejoin="round"/></svg>ACTIVO</button>
+          </div>
+        </div>
+        <div class="logistics-table-wrap">
+          <table class="logistics-table machinery-table">
+            <thead><tr><th scope="col">ACTIVO</th><th scope="col">FUNDO</th><th scope="col">UBIGEO</th><th scope="col">NRO ORDEN</th><th scope="col">MAQUINARIA</th><th scope="col">PROVEEDOR</th><th scope="col">CANTIDAD OC</th><th scope="col">ESTADO</th><th scope="col">HORAS EJECUTADAS</th></tr></thead>
+            <tbody>
+              {% for item in machinery_report.rows %}
+              <tr data-active="{{ 'true' if item.active else 'false' }}">
+                <td>{% if item.active %}<span class="active-badge" aria-label="Activo"><span class="active-icon" aria-hidden="true">✓</span>A</span>{% else %}<span class="inactive-mark">N.A.</span>{% endif %}</td>
+                <td>{{ item.fund }}</td>
+                <td>{{ item.ubigeo }}</td>
+                <td>{{ item.order_number }}</td>
+                <td>{{ item.machinery }}</td>
+                <td>{{ item.supplier }}</td>
+                <td>{{ item.purchase_quantity }}</td>
+                <td><span class="receipt-status {{ item.receipt_status_kind }}"><span class="receipt-icon" aria-hidden="true">{% if item.receipt_status_kind == 'complete' %}✓{% else %}•{% endif %}</span>{{ item.receipt_status }}{% if item.receipt_status_kind == 'pending' %} {{ item.pending_receipt_quantity }}{% endif %}</span></td>
+                <td>{{ item.decimal_hours }}</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="9">No se encontraron registros con factura vinculada a DRENAJE.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
       </section>
-    </div>
+    </section>
 
-    <aside class="method">
-      <strong>Fuente y criterios:</strong> `Maquinaria.xlsx`, hojas Reporte Ejecutivo, Detalle Reporte, Costo Histórico y Reporte Diario. El libro se vuelve a leer al cargar esta página. Los resultados de fórmulas son los valores guardados en el Excel; guarda el libro recalculado en Excel para actualizar esos valores.
-    </aside>
-    <footer><span>Reporte de maquinaria · Proyecto Drenaje</span><span>Origen: {{ report.start_date }}–{{ report.end_date }} / {{ report.daily_date }}</span></footer>
+    <section class="report-view" id="plano" aria-label="Plano de abastecimiento de agua para Palto" hidden>
+      <section class="card plan-panel">
+        <div class="table-section-heading plan-heading">
+          <h3>Plano de abastecimiento de agua · Palto</h3>
+        </div>
+        <img class="plan-image" src="{{ url_for('static', filename='mapa_palto.svg') }}" alt="Plano del sistema de abastecimiento de agua para Palto">
+      </section>
+    </section>
+
   </main>
+  <script>
+    function showReportView(viewId) {
+      const validViews = ["resumen", "maquinaria", "plano"];
+      const selectedId = validViews.includes(viewId) ? viewId : "resumen";
+      document.querySelectorAll(".report-view").forEach((view) => {
+        view.hidden = view.id !== selectedId;
+      });
+      document.querySelectorAll(".sidebar-link").forEach((link) => {
+        const active = link.getAttribute("href") === `#${selectedId}`;
+        link.classList.toggle("active", active);
+        if (active) link.setAttribute("aria-current", "page");
+        else link.removeAttribute("aria-current");
+      });
+    }
+    document.querySelectorAll(".sidebar-link").forEach((link) => {
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        const viewId = link.getAttribute("href").slice(1);
+        showReportView(viewId);
+        if (window.location.hash !== `#${viewId}`) window.location.hash = viewId;
+      });
+    });
+    window.addEventListener("hashchange", () => showReportView(window.location.hash.slice(1)));
+    showReportView(window.location.hash.slice(1));
+    const machineryFilterButtons = document.querySelectorAll("[data-machinery-filter]");
+    const machineryRows = document.querySelectorAll("#maquinaria tbody tr[data-active]");
+    machineryFilterButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const filter = button.getAttribute("data-machinery-filter");
+        machineryFilterButtons.forEach((option) => {
+          option.setAttribute("aria-pressed", String(option === button));
+        });
+        machineryRows.forEach((row) => {
+          row.hidden = filter === "active" && row.getAttribute("data-active") !== "true";
+        });
+      });
+    });
+    function toggleActivityDetails(button) {
+      const detailRow = document.getElementById(button.getAttribute("aria-controls"));
+      const isExpanded = button.getAttribute("aria-expanded") === "true";
+      button.setAttribute("aria-expanded", String(!isExpanded));
+      detailRow.hidden = isExpanded;
+      button.querySelector(".expand-icon").textContent = isExpanded ? "+" : "−";
+    }
+    function toggleFundDetails(button) {
+      const details = document.getElementById(button.getAttribute("aria-controls"));
+      const isExpanded = button.getAttribute("aria-expanded") === "true";
+      button.setAttribute("aria-expanded", String(!isExpanded));
+      details.hidden = isExpanded;
+      button.querySelector(".fund-toggle-icon").textContent = isExpanded ? "+" : "−";
+    }
+  </script>
 </body>
 </html>

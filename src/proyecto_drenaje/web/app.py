@@ -5,6 +5,7 @@ import re
 import unicodedata
 from dataclasses import dataclass
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 from zipfile import BadZipFile
@@ -27,34 +28,23 @@ class ReportDataError(RuntimeError):
 
 
 @dataclass(frozen=True)
-class ActivityCost:
-    activity_id: int
-    activity: str
-    partida: str
-    budget_usd: str
-    executed_usd: str
-
-
-@dataclass(frozen=True)
 class LogisticsRecord:
+    fund: str
     order_number: str
     supplier: str
     total_usd: str
 
 
 @dataclass(frozen=True)
-class LogisticsFundGroup:
-    fund: str
-    records: list[LogisticsRecord]
-    total_usd: str
-
-
-@dataclass(frozen=True)
-class LogisticsPartidaGroup:
+class ActivityCost:
+    activity_id: int
+    activity: str
     partida: str
-    funds: list[LogisticsFundGroup]
-    records: int
-    total_usd: str
+    budget_usd: str
+    executed_usd: str
+    available_usd: str
+    details: list[LogisticsRecord]
+    group_details_by_fund: bool = False
 
 
 @dataclass(frozen=True)
@@ -64,9 +54,28 @@ class LogisticsSummary:
     priced_records: int
     total_budget_usd: str
     total_executed_usd: str
+    total_available_usd: str
     activity_costs: list[ActivityCost]
-    partida_groups: list[LogisticsPartidaGroup]
-    detail_total_usd: str
+
+
+@dataclass(frozen=True)
+class MachineryLogisticsRow:
+    active: bool
+    fund: str
+    ubigeo: str
+    order_number: str
+    machinery: str
+    supplier: str
+    purchase_quantity: str
+    pending_receipt_quantity: str
+    decimal_hours: str
+    receipt_status: str
+    receipt_status_kind: str
+
+
+@dataclass(frozen=True)
+class MachineryLogisticsReport:
+    rows: list[MachineryLogisticsRow]
 
 
 @dataclass(frozen=True)
@@ -237,8 +246,7 @@ def load_logistics_summary(
         priced_records = 0
         project_labels: set[str] = set()
         partida_totals: dict[str, float] = {}
-        fund_totals: dict[str, dict[str, float]] = {}
-        records_by_partida_and_fund: dict[str, dict[str, list[LogisticsRecord]]] = {}
+        records_by_partida: dict[str, list[LogisticsRecord]] = {}
         for row in worksheet.iter_rows(min_row=2, values_only=True):
             project_value = row[columns["PROYECTO"]]
             project = " ".join(str(project_value or "").split()).upper()
@@ -251,8 +259,7 @@ def load_logistics_summary(
             partida = partida_value or "(Sin partida)"
             fund = _display_value(row[columns["FUNDO"]])
             partida_totals.setdefault(partida, 0.0)
-            fund_totals.setdefault(partida, {}).setdefault(fund, 0.0)
-            records_by_partida_and_fund.setdefault(partida, {}).setdefault(fund, [])
+            records_by_partida.setdefault(partida, [])
             amount = row[columns["TOTAL $"]]
             if amount is None:
                 amount_display = "—"
@@ -267,12 +274,12 @@ def load_logistics_summary(
                     )
                 amount_number = float(amount)
                 partida_totals[partida] += amount_number
-                fund_totals[partida][fund] += amount_number
                 priced_records += 1
                 amount_display = f"US$ {_format_number(amount_number)}"
 
-            records_by_partida_and_fund[partida][fund].append(
+            records_by_partida[partida].append(
                 LogisticsRecord(
+                    fund=fund,
                     order_number=_display_value(row[columns["NRO ORDEN"]]),
                     supplier=_display_value(row[columns["PROVEEDOR"]]),
                     total_usd=amount_display,
@@ -374,9 +381,11 @@ def load_logistics_summary(
                 partida = "Sin partida equivalente"
                 executed = 0.0
                 executed_display = "—"
+                details: list[LogisticsRecord] = []
             else:
                 partida, executed = matched
                 executed_display = f"US$ {_format_number(executed)}"
+                details = records_by_partida.get(partida, [])
 
             budget = float(raw_budget)
             total_budget += budget
@@ -388,6 +397,11 @@ def load_logistics_summary(
                     partida=partida,
                     budget_usd=f"US$ {_format_number(budget)}",
                     executed_usd=executed_display,
+                    available_usd=f"US$ {_format_number(budget - executed)}",
+                    details=details,
+                    group_details_by_fund=normalized_activity in {
+                        "movimiento de tierra", "movimiento de tierras"
+                    },
                 )
             )
 
@@ -398,41 +412,217 @@ def load_logistics_summary(
                 f"Faltan los ID: {missing_ids}."
             )
 
-        partida_groups = [
-            LogisticsPartidaGroup(
-                partida=partida,
-                records=sum(len(fund_records) for fund_records in funds.values()),
-                total_usd=f"US$ {_format_number(partida_totals[partida])}",
-                funds=[
-                    LogisticsFundGroup(
-                        fund=fund,
-                        records=fund_records,
-                        total_usd=f"US$ {_format_number(fund_totals[partida][fund])}",
-                    )
-                    for fund, fund_records in sorted(
-                        funds.items(),
-                        key=lambda item: (-fund_totals[partida][item[0]], item[0]),
-                    )
-                ],
-            )
-            for partida, funds in sorted(
-                records_by_partida_and_fund.items(),
-                key=lambda item: (-partida_totals[item[0]], item[0]),
-            )
-        ]
-
         return LogisticsSummary(
             project=", ".join(sorted(project_labels)),
             records=records,
             priced_records=priced_records,
             total_budget_usd=f"US$ {_format_number(total_budget)}",
             total_executed_usd=f"US$ {_format_number(total_executed)}",
+            total_available_usd=f"US$ {_format_number(total_budget - total_executed)}",
             activity_costs=activity_costs,
-            partida_groups=partida_groups,
-            detail_total_usd=f"US$ {_format_number(sum(partida_totals.values()))}",
         )
     finally:
         machinery_workbook.close()
+
+
+def _numeric_join_key(value: Any) -> Decimal | None:
+    """Normalize numeric invoice IDs from Excel so text and numbers can join."""
+    if value is None or isinstance(value, bool):
+        return None
+    text = str(value).strip().replace(" ", "")
+    if not text:
+        return None
+    if "," in text and "." not in text:
+        text = text.replace(",", ".")
+    try:
+        number = Decimal(text)
+    except InvalidOperation:
+        return None
+    if not number.is_finite():
+        return None
+    return number.normalize()
+
+
+def _format_source_number(value: Any, decimals: int = 2) -> str:
+    if value is None or value == "":
+        return "—"
+    if isinstance(value, bool):
+        return str(value)
+    if isinstance(value, (int, float)) and math.isfinite(value):
+        return _format_number(float(value), decimals)
+    return _display_value(value)
+
+
+def _format_quantity(value: Decimal) -> str:
+    if value == value.to_integral_value():
+        return _format_number(float(value), 0)
+    return _format_number(float(value), 2).rstrip("0").rstrip(",")
+
+
+def load_machinery_logistics_report(
+    machinery_file: Path = SOURCE_FILE,
+    logistics_file: Path = LOGISTICS_SOURCE_FILE,
+) -> MachineryLogisticsReport:
+    """Join machinery work rows to DRENAJE purchase orders by numeric invoice ID."""
+    for source_file, label in (
+        (machinery_file, "libro de maquinaria"),
+        (logistics_file, "base logística"),
+    ):
+        if not source_file.is_file():
+            raise ReportDataError(f"No se encontró el {label}: {source_file}")
+
+    try:
+        machinery_workbook = load_workbook(
+            machinery_file, read_only=True, data_only=True
+        )
+        logistics_workbook = load_workbook(
+            logistics_file, read_only=True, data_only=True
+        )
+    except (BadZipFile, InvalidFileException, OSError) as error:
+        raise ReportDataError("No se pudieron abrir los libros para el cruce de maquinaria.") from error
+
+    try:
+        if "Data" not in machinery_workbook.sheetnames:
+            raise ReportDataError("Falta la hoja Data en Maquinaria.xlsx.")
+        if "BD_LOGISTICO" not in logistics_workbook.sheetnames:
+            raise ReportDataError("Falta la hoja BD_LOGISTICO en SeguimientoLogistica.xlsx.")
+
+        machinery_sheet = machinery_workbook["Data"]
+        machine_headers: dict[str, int] = {}
+        machine_header_row = 0
+        required_machine = {
+            "num factura", "ubigeo", "maquinaria", "proveedor", "horas decimales",
+            "tipo maquinaria",
+        }
+        for row_number, row in enumerate(
+            machinery_sheet.iter_rows(min_row=1, max_row=min(15, machinery_sheet.max_row), values_only=True),
+            start=1,
+        ):
+            candidates = {
+                _normalize_label(value): index
+                for index, value in enumerate(row)
+                if value is not None
+            }
+            if required_machine.issubset(candidates):
+                machine_header_row = row_number
+                machine_headers = candidates
+                break
+        if not machine_header_row:
+            raise ReportDataError(
+                "No se encontraron Num Factura, UBIGEO, Maquinaria, Proveedor y "
+                "HORAS DECIMALES y Tipo Maquinaria en la hoja Data."
+            )
+
+        logistics_sheet = logistics_workbook["BD_LOGISTICO"]
+        logistics_rows = logistics_sheet.iter_rows(min_row=1, values_only=True)
+        logistics_header = next(logistics_rows, None)
+        if logistics_header is None:
+            raise ReportDataError("La hoja BD_LOGISTICO está vacía.")
+        logistics_headers = {
+            str(value).strip().upper(): index
+            for index, value in enumerate(logistics_header)
+            if value is not None
+        }
+        required_logistics = {
+            "PROYECTO", "ESTADO COSTO", "FUNDO", "NRO ORDEN",
+            "CANTIDAD OC", "CANTIDAD RECEPCIONADA",
+        }
+        if not required_logistics.issubset(logistics_headers):
+            raise ReportDataError(
+                "BD_LOGISTICO debe incluir PROYECTO, ESTADO COSTO, FUNDO, NRO ORDEN, "
+                "CANTIDAD OC y CANTIDAD RECEPCIONADA."
+            )
+
+        logistics_by_invoice: dict[Decimal, tuple[str, str, str, str, str, str]] = {}
+        for row in logistics_rows:
+            project = " ".join(str(row[logistics_headers["PROYECTO"]] or "").split()).upper()
+            if project != "DRENAJE" and not project.startswith("DRENAJE "):
+                continue
+            invoice_key = _numeric_join_key(row[logistics_headers["ESTADO COSTO"]])
+            if invoice_key is None:
+                continue
+            if invoice_key in logistics_by_invoice:
+                raise ReportDataError(
+                    f"ESTADO COSTO {invoice_key} está duplicado en SeguimientoLogistica "
+                    "para el proyecto DRENAJE; el cruce muchos a uno requiere una fila "
+                    "única en esa base."
+                )
+            order_quantity_raw = row[logistics_headers["CANTIDAD OC"]]
+            received_quantity_raw = row[logistics_headers["CANTIDAD RECEPCIONADA"]]
+            order_quantity = _numeric_join_key(order_quantity_raw)
+            received_quantity = _numeric_join_key(received_quantity_raw)
+            if (
+                order_quantity is not None
+                and received_quantity is not None
+                and received_quantity == order_quantity
+            ):
+                receipt_status, receipt_status_kind = "Recepcionada", "complete"
+            else:
+                receipt_status, receipt_status_kind = "Pendiente", "pending"
+            pending_quantity = (
+                max(order_quantity - (received_quantity or Decimal(0)), Decimal(0))
+                if order_quantity is not None
+                else None
+            )
+            logistics_by_invoice[invoice_key] = (
+                _display_value(row[logistics_headers["FUNDO"]]),
+                _display_value(row[logistics_headers["NRO ORDEN"]]),
+                _format_source_number(order_quantity_raw),
+                _format_quantity(pending_quantity)
+                if pending_quantity is not None
+                else "—",
+                receipt_status,
+                receipt_status_kind,
+            )
+
+        grouped_hours: dict[tuple[str, ...], Decimal] = {}
+        machine_iter = machinery_sheet.iter_rows(
+            min_row=machine_header_row + 1, values_only=True
+        )
+        for row in machine_iter:
+            invoice_key = _numeric_join_key(row[machine_headers["num factura"]])
+            if invoice_key is None or invoice_key not in logistics_by_invoice:
+                continue
+            (
+                fund, order_number, quantity, pending_quantity,
+                receipt_status, receipt_status_kind,
+            ) = logistics_by_invoice[invoice_key]
+            ubigeo = _display_value(row[machine_headers["ubigeo"]])
+            machinery = _display_value(row[machine_headers["maquinaria"]])
+            supplier = _display_value(row[machine_headers["proveedor"]])
+            active = _normalize_label(row[machine_headers["tipo maquinaria"]]) == "activo"
+            group_key = (
+                active, fund, ubigeo, order_number, machinery, supplier, quantity,
+                pending_quantity, receipt_status, receipt_status_kind,
+            )
+            hours = _numeric_join_key(row[machine_headers["horas decimales"]]) or Decimal(0)
+            grouped_hours[group_key] = grouped_hours.get(group_key, Decimal(0)) + hours
+
+        rows = [
+            MachineryLogisticsRow(
+                active=active,
+                fund=fund,
+                ubigeo=ubigeo,
+                order_number=order_number,
+                machinery=machinery,
+                supplier=supplier,
+                purchase_quantity=quantity,
+                pending_receipt_quantity=pending_quantity,
+                decimal_hours=_format_number(float(hours), 2),
+                receipt_status=receipt_status,
+                receipt_status_kind=receipt_status_kind,
+            )
+            for (
+                active, fund, ubigeo, order_number, machinery, supplier, quantity,
+                pending_quantity, receipt_status, receipt_status_kind,
+            ), hours
+            in sorted(grouped_hours.items(), key=lambda item: item[0])
+        ]
+
+        return MachineryLogisticsReport(rows=rows)
+    finally:
+        machinery_workbook.close()
+        logistics_workbook.close()
 
 
 def _stop_category(reason: str) -> str:
@@ -633,10 +823,16 @@ def machinery_report() -> str | tuple[str, int]:
     try:
         logistics = load_logistics_summary()
         report = load_report_data()
+        machinery_report_data = load_machinery_logistics_report()
     except ReportDataError as error:
         app.logger.error("No se pudo generar el reporte: %s", error)
         return render_template("error.html", message=str(error)), 503
-    return render_template("report.html", report=report, logistics=logistics)
+    return render_template(
+        "report.html",
+        report=report,
+        logistics=logistics,
+        machinery_report=machinery_report_data,
+    )
 
 
 if __name__ == "__main__":
