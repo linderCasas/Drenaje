@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Reporte web de costos, pagos y disponibilidad del servicio de maquinaria.">
+  <title>Maquinaria | Reporte de gestión</title>
+  <style>
+    :root {
+      --ink: #172a3a;
+      --muted: #627486;
+      --line: #e2e9ed;
+      --paper: #fff;
+      --canvas: #f3f6f7;
+      --navy: #18364a;
+      --teal: #167c73;
+      --teal-soft: #e5f4f1;
+      --amber: #bf7620;
+      --amber-soft: #fff3df;
+      --red: #bd4d43;
+      --blue: #4479a0;
+      --shadow: 0 12px 32px rgba(27, 55, 74, .07);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--canvas); color: var(--ink); font: 15px/1.55 "Segoe UI", Arial, sans-serif; }
+    .page { width: min(1120px, calc(100% - 40px)); margin: 0 auto; padding: 38px 0 54px; }
+    .topline { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 25px; }
+    .brand { display: flex; align-items: center; gap: 11px; color: var(--navy); font-size: 13px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+    .brand-logo { display: block; width: 55px; height: 74px; object-fit: contain; }
+    .refresh { border: 1px solid #cbd6dc; border-radius: 9px; background: var(--paper); color: var(--navy); cursor: pointer; font: inherit; font-size: 13px; font-weight: 650; padding: 9px 13px; }
+    .refresh:hover { border-color: var(--teal); color: var(--teal); }
+    .hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; margin: 0 0 25px; }
+    .eyebrow { margin: 0 0 7px; color: var(--teal); font-size: 12px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+    h1 { margin: 0; color: var(--navy); font-size: clamp(30px, 4vw, 43px); letter-spacing: -.04em; line-height: 1.08; }
+    .subtitle { max-width: 700px; margin: 12px 0 0; color: var(--muted); }
+    .date-chip { flex: 0 0 auto; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); padding: 11px 15px; color: var(--muted); font-size: 12px; }
+    .date-chip strong { display: block; margin-top: 2px; color: var(--ink); font-size: 14px; }
+    .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+    .logistics-panel { margin-bottom: 18px; }
+    .logistics-table-wrap { overflow-x: auto; }
+    .logistics-table { width: 100%; min-width: 820px; border-collapse: collapse; font-size: 13px; }
+    .logistics-table th, .logistics-table td { border-bottom: 1px solid var(--line); padding: 12px 14px; text-align: left; }
+    .logistics-table th { background: #f7f9fa; color: var(--muted); font-size: 11px; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; }
+    .logistics-table td:first-child, .logistics-table th:first-child { width: 52px; text-align: center; }
+    .logistics-table td:nth-child(n+4), .logistics-table th:nth-child(n+4) { text-align: right; white-space: nowrap; }
+    .logistics-table tfoot td { border-bottom: 0; background: var(--teal-soft); color: var(--navy); font-weight: 750; }
+    .detail-table-wrap { max-height: 560px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+    .detail-table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 12px; }
+    .detail-table th, .detail-table td { border-bottom: 1px solid var(--line); padding: 9px 11px; text-align: left; vertical-align: top; }
+    .detail-table th { position: sticky; top: 0; z-index: 1; background: #f7f9fa; color: var(--muted); font-size: 11px; font-weight: 750; text-transform: uppercase; }
+    .detail-table td:last-child, .detail-table th:last-child { text-align: right; white-space: nowrap; }
+    .detail-table tfoot td { position: sticky; bottom: 0; background: var(--teal-soft); color: var(--navy); font-weight: 750; }
+    .logistics-source { margin: 13px 0 0; color: var(--muted); font-size: 11px; }
+    .card { border: 1px solid var(--line); border-radius: 15px; background: var(--paper); box-shadow: var(--shadow); }
+    .kpi { min-height: 138px; padding: 18px 19px; }
+    .kpi-label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 650; }
+    .kpi-icon { display: grid; width: 27px; height: 27px; place-items: center; border-radius: 8px; background: #eef4f6; color: var(--blue); font-size: 14px; }
+    .kpi-value { margin-top: 15px; color: var(--navy); font-size: clamp(23px, 2.4vw, 30px); font-weight: 760; letter-spacing: -.04em; line-height: 1.15; }
+    .kpi-foot { margin-top: 6px; color: var(--muted); font-size: 12px; }
+    .kpi.alert .kpi-icon { background: var(--amber-soft); color: var(--amber); }
+    .grid-two, .bottom-grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: 18px; margin-bottom: 18px; }
+    .bottom-grid { grid-template-columns: 1fr 1fr; }
+    .panel { padding: 22px 23px; }
+    .panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 20px; }
+    h2 { margin: 0; color: var(--navy); font-size: 17px; letter-spacing: -.015em; }
+    .panel-subtitle { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .tag { flex: 0 0 auto; border-radius: 99px; background: #eef4f6; padding: 5px 9px; color: var(--muted); font-size: 11px; font-weight: 700; }
+    .payment-layout, .availability-layout { display: flex; align-items: center; gap: 26px; min-height: 0; }
+    .legend { display: grid; width: 100%; gap: 15px; }
+    .legend-row { display: grid; grid-template-columns: 10px 1fr auto; align-items: center; gap: 9px; }
+    .legend-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--teal); }
+    .legend-dot.pending { background: #e9a23b; }
+    .legend-name { color: var(--muted); font-size: 12px; }
+    .legend-value { color: var(--ink); font-size: 13px; font-weight: 700; text-align: right; }
+    .legend-value small { display: block; color: var(--muted); font-size: 11px; font-weight: 500; }
+    .rate-note { margin: 16px 0 0; border-top: 1px solid var(--line); padding-top: 13px; color: var(--muted); font-size: 12px; }
+    .rate-note strong { color: var(--ink); }
+    .machine-counts { flex: 1; }
+    .count-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #edf1f3; font-size: 12px; }
+    .count-row:last-child { border-bottom: 0; }
+    .count-row span { color: var(--muted); }
+    .count-row strong { color: var(--ink); font-size: 13px; text-align: right; }
+    .count-row .down { color: var(--red); }
+    .reasons { display: grid; gap: 0; margin-top: 18px; }
+    .reason { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #edf1f3; }
+    .reason-label { color: var(--muted); font-size: 12px; }
+    .reason-count { color: var(--ink); font-size: 12px; font-weight: 700; text-align: right; }
+    .quality-panel { margin-bottom: 18px; }
+    .quality-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border-top: 1px solid var(--line); }
+    .quality-item { padding: 17px 18px 4px 0; }
+    .quality-item + .quality-item { border-left: 1px solid var(--line); padding-left: 18px; }
+    .quality-number { color: var(--navy); font-size: 23px; font-weight: 750; letter-spacing: -.03em; }
+    .quality-number small { color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: 0; }
+    .quality-name { margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .quality-note { margin: 15px 0 0; color: var(--muted); font-size: 12px; }
+    .action-list { display: grid; gap: 13px; margin: 0; padding: 0; list-style: none; }
+    .action-list li { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; color: var(--muted); font-size: 13px; }
+    .action-number { display: grid; width: 25px; height: 25px; place-items: center; border-radius: 8px; background: var(--teal-soft); color: var(--teal); font-size: 12px; font-weight: 750; }
+    .action-list strong { color: var(--ink); }
+    .risk-list { display: grid; gap: 12px; }
+    .risk { border-left: 3px solid #e4a247; padding: 2px 0 2px 12px; color: var(--muted); font-size: 12px; }
+    .risk strong { display: block; margin-bottom: 2px; color: var(--ink); font-size: 13px; }
+    .risk.red { border-color: var(--red); }
+    .stop-table { width: 100%; margin-top: 15px; border-collapse: collapse; font-size: 11px; }
+    .stop-table th, .stop-table td { border-top: 1px solid var(--line); padding: 8px 5px; text-align: left; vertical-align: top; }
+    .stop-table th { color: var(--muted); font-weight: 650; }
+    .stop-table td { color: var(--ink); }
+    .method { border: 1px solid var(--line); border-radius: 12px; background: #eef3f5; padding: 15px 17px; color: var(--muted); font-size: 11px; }
+    .method strong { color: var(--ink); }
+    footer { display: flex; justify-content: space-between; gap: 16px; margin-top: 20px; color: var(--muted); font-size: 11px; }
+    @media (max-width: 780px) {
+      .kpis { grid-template-columns: repeat(2, 1fr); }
+      .grid-two, .bottom-grid { grid-template-columns: 1fr; }
+      .hero { align-items: flex-start; flex-direction: column; gap: 15px; }
+      .date-chip { width: 100%; }
+    }
+    @media (max-width: 520px) {
+      .page { width: min(100% - 24px, 1120px); padding-top: 20px; }
+      .topline { margin-bottom: 22px; }
+      .brand { font-size: 11px; }
+      .refresh { padding: 8px 10px; }
+      .kpis { gap: 9px; }
+      .kpi { min-height: 127px; padding: 14px; }
+      .kpi-value { font-size: 22px; }
+      .panel { padding: 18px 16px; }
+      .payment-layout, .availability-layout { gap: 15px; }
+      .quality-grid { grid-template-columns: repeat(2, 1fr); }
+      .quality-item { padding: 14px 12px 8px 0; }
+      .quality-item + .quality-item { padding-left: 12px; }
+      .quality-item:nth-child(3) { border-left: 0; padding-left: 0; }
+      .quality-item:nth-child(n+3) { border-top: 1px solid var(--line); }
+      .reason { grid-template-columns: 112px 1fr 20px; gap: 7px; }
+      .stop-table { font-size: 10px; }
+      footer { flex-direction: column; }
+    }
+    @media print {
+      body { background: #fff; }
+      .page { width: 100%; padding: 0; }
+      .refresh { display: none; }
+      .card { box-shadow: none; break-inside: avoid; }
+      .grid-two, .bottom-grid, .method { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="topline">
+      <div class="brand">
+        <img class="brand-logo" src="{{ url_for('static', filename='logo_unifrutti.png') }}" alt="Unifrutti">
+        Control de maquinaria
+      </div>
+      <button class="refresh" type="button" onclick="window.location.reload()">Actualizar reporte</button>
+    </div>
+
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Reporte de maquinaria</p>
+      </div>
+      <div class="date-chip">Corte financiero<strong>{{ report.end_date }}</strong></div>
+    </header>
+
+    <section class="card panel logistics-panel" aria-labelledby="logistics-title">
+      <div class="panel-head">
+        <div>
+          <h2 id="logistics-title">Presupuesto y ejecutado real</h2>
+        </div>
+        <span class="tag">PROYECTO = DRENAJE</span>
+      </div>
+      <div class="logistics-table-wrap">
+        <table class="logistics-table">
+          <thead><tr><th scope="col">ID</th><th scope="col">ACTIVIDAD (GANTT)</th><th scope="col">PARTIDA LOGÍSTICA</th><th scope="col">PRESUPUESTO (USD)</th><th scope="col">EJECUTADO REAL (USD)</th></tr></thead>
+          <tbody>
+            {% for item in logistics.activity_costs %}
+            <tr><td>{{ item.activity_id }}</td><td>{{ item.activity }}</td><td>{{ item.partida }}</td><td>{{ item.budget_usd }}</td><td>{{ item.executed_usd }}</td></tr>
+            {% endfor %}
+          </tbody>
+          <tfoot><tr><td colspan="3">TOTAL GENERAL</td><td>{{ logistics.total_budget_usd }}</td><td>{{ logistics.total_executed_usd }}</td></tr></tfoot>
+        </table>
+      </div>
+    </section>
+
+    <section class="card panel logistics-detail-panel" aria-labelledby="logistics-detail-title">
+      <div class="panel-head">
+        <div><h2 id="logistics-detail-title">Detalle de seguimiento logístico</h2></div>
+      </div>
+      <div class="detail-table-wrap">
+        <table class="detail-table">
+          <thead>
+            <tr><th scope="col">PARTIDA</th><th scope="col">FUNDO</th><th scope="col">NRO ORDEN</th><th scope="col">PROVEEDOR</th><th scope="col">TOTAL $</th></tr>
+          </thead>
+          <tbody>
+            {% for item in logistics.detail_records %}
+            <tr><td>{{ item.partida }}</td><td>{{ item.fund }}</td><td>{{ item.order_number }}</td><td>{{ item.supplier }}</td><td>{{ item.total_usd }}</td></tr>
+            {% endfor %}
+          </tbody>
+          <tfoot><tr><td colspan="4">TOTAL GENERAL</td><td>{{ logistics.detail_total_usd }}</td></tr></tfoot>
+        </table>
+      </div>
+    </section>
+
+    <section class="kpis" aria-label="Indicadores principales">
+      <article class="card kpi">
+        <div class="kpi-label"><span class="kpi-icon">S/</span> Costo acumulado</div>
+        <div class="kpi-value">{{ report.cost_total }}</div>
+        <div class="kpi-foot">{{ report.cost_usd }} reportados</div>
+      </article>
+      <article class="card kpi">
+        <div class="kpi-label"><span class="kpi-icon">◷</span> Horas ejecutadas</div>
+        <div class="kpi-value">{{ report.hours }}</div>
+        <div class="kpi-foot">{{ report.parts }} partes · {{ report.hours_per_part }} promedio con horas &gt; 0</div>
+      </article>
+      <article class="card kpi">
+        <div class="kpi-label"><span class="kpi-icon">↗</span> Avance registrado</div>
+        <div class="kpi-value">{{ report.meters }}</div>
+        <div class="kpi-foot">Costo referencial: {{ report.cost_per_meter }}</div>
+      </article>
+      <article class="card kpi alert">
+        <div class="kpi-label"><span class="kpi-icon">!</span> Pendiente de pago</div>
+        <div class="kpi-value">{{ report.pending }}</div>
+        <div class="kpi-foot">{{ report.pending_percent }} del costo total</div>
+      </article>
+    </section>
+
+    <div class="grid-two">
+      <section class="card panel">
+        <div class="panel-head"><div><h2>Estado de pagos</h2><p class="panel-subtitle">Distribución del costo acumulado al {{ report.end_date }}</p></div><span class="tag">Soles (S/)</span></div>
+        <div class="payment-layout">
+          <div class="legend">
+            <div class="legend-row"><span class="legend-dot"></span><span class="legend-name">Pagado</span><span class="legend-value">{{ report.paid }}<small>{{ report.paid_percent }}</small></span></div>
+            <div class="legend-row"><span class="legend-dot pending"></span><span class="legend-name">Pendiente</span><span class="legend-value">{{ report.pending }}<small>{{ report.pending_percent }}</small></span></div>
+          </div>
+        </div>
+        <p class="rate-note">Tarifa ponderada: <strong>{{ report.hours_with_tariff_rate }}</strong> para horas valorizadas. Hay <strong>{{ report.unpriced_hours }} sin valorizar</strong>; al incluirlas, costo total ÷ horas equivale a {{ report.blended_rate }}.</p>
+      </section>
+
+      <section class="card panel">
+        <div class="panel-head"><div><h2>Disponibilidad de equipos</h2><p class="panel-subtitle">Parte diario del {{ report.daily_date }}</p></div><span class="tag">{{ report.scheduled }} programados</span></div>
+        <div class="availability-layout">
+          <div class="machine-counts">
+            <div class="count-row"><span>Disponibilidad</span><strong>{{ report.availability }}</strong></div>
+            <div class="count-row"><span>Operativos</span><strong>{{ report.operational }} equipos</strong></div>
+            <div class="count-row"><span>No operativos</span><strong class="down">{{ report.nonoperational }} equipos</strong></div>
+            <div class="count-row"><span>Equipos listados en Mosqueta</span><strong>{{ report.mosqueta_operational }} de {{ report.mosqueta_total }} operativos</strong></div>
+          </div>
+        </div>
+        <div class="reasons" aria-label="Motivos de no operatividad">
+          {% for reason in report.stop_reasons %}
+          <div class="reason"><span class="reason-label">{{ reason.label }}</span><span class="reason-count">{{ reason.count }}</span></div>
+          {% endfor %}
+        </div>
+        <table class="stop-table">
+          <thead><tr><th>Equipo</th><th>Fundo / proveedor</th><th>Motivo</th></tr></thead>
+          <tbody>
+            {% for stop in report.stop_records %}
+            <tr><td>{{ stop.machine }}</td><td>{{ stop.fund }} · {{ stop.provider }}</td><td>{{ stop.reason or "Sin motivo registrado" }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    <section class="card panel quality-panel">
+      <div class="panel-head"><div><h2>Calidad y completitud de registros</h2><p class="panel-subtitle">{{ report.parts }} partes incluidos en el corte financiero</p></div><span class="tag">Requiere conciliación</span></div>
+      <div class="quality-grid">
+        {% for metric in report.quality_metrics %}
+        <div class="quality-item">
+          <div class="quality-number">{{ metric.count }} <small>· {{ metric.display }}</small></div>
+          <div class="quality-name">{{ metric.label }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      <p class="quality-note">También se registran {{ report.missing_fund }} partes sin fundo y {{ report.zero_hour_parts }} partes con cero horas ({{ report.zero_hour_percent }}). La falta de marca de pago no confirma que un parte esté impago.</p>
+    </section>
+
+    <div class="bottom-grid">
+      <section class="card panel">
+        <div class="panel-head"><div><h2>Acciones recomendadas</h2><p class="panel-subtitle">Prioridades para Finanzas, Logística y Operaciones</p></div></div>
+        <ol class="action-list">
+          <li><span class="action-number">1</span><span><strong>Conciliar pagos:</strong> validar {{ report.pending }} pendientes con facturas y órdenes de compra.</span></li>
+          <li><span class="action-number">2</span><span><strong>Completar los partes:</strong> registrar tarifas, estados y fundos; priorizar las {{ report.unpriced_hours }} sin valorizar.</span></li>
+          <li><span class="action-number">3</span><span><strong>Recuperar disponibilidad:</strong> atender los motivos de parada e informar la solución en el parte diario.</span></li>
+          <li><span class="action-number">4</span><span><strong>Revisar dependencia:</strong> evaluar contingencia para {{ report.vendor }}, que concentra {{ report.vendor_share }} del costo.</span></li>
+        </ol>
+      </section>
+
+      <section class="card panel">
+        <div class="panel-head"><div><h2>Alertas de gestión</h2><p class="panel-subtitle">Puntos que requieren validar el dato fuente</p></div></div>
+        <div class="risk-list">
+          <div class="risk red"><strong>Baja disponibilidad</strong>{{ report.nonoperational }} de {{ report.scheduled }} equipos estuvieron no operativos el {{ report.daily_date }}.</div>
+          <div class="risk"><strong>Concentración de costo</strong>{{ report.vendor }} representa {{ report.vendor_share }} del costo según el detalle por proveedor.</div>
+          <div class="risk"><strong>Órdenes de compra</strong>Revisar las OC {{ report.purchase_orders }}. El indicador fuente muestra “{{ report.purchase_order_status }}” evaluables.</div>
+          {% if report.has_formula_errors %}
+          <div class="risk"><strong>Error en hoja fuente</strong>Algunos mensajes y decisiones del “Reporte Ejecutivo” muestran #VALUE!; no se usaron como cifras válidas.</div>
+          {% endif %}
+        </div>
+      </section>
+    </div>
+
+    <aside class="method">
+      <strong>Fuente y criterios:</strong> `Maquinaria.xlsx`, hojas Reporte Ejecutivo, Detalle Reporte, Costo Histórico y Reporte Diario. El libro se vuelve a leer al cargar esta página. Los resultados de fórmulas son los valores guardados en el Excel; guarda el libro recalculado en Excel para actualizar esos valores.
+    </aside>
+    <footer><span>Reporte de maquinaria · Proyecto Drenaje</span><span>Origen: {{ report.start_date }}–{{ report.end_date }} / {{ report.daily_date }}</span></footer>
+  </main>
+</body>
+</html>

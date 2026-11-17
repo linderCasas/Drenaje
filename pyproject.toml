@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "proyecto-drenaje"
+version = "0.1.0"
+description = "ETL y reporte web para el proyecto de drenaje"
+dependencies = [
+    "Flask>=3.1,<4",
+    "openpyxl>=3.1,<4",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"proyecto_drenaje.web" = ["templates/*.html", "static/*.png"]
