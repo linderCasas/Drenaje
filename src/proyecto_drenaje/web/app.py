@@ -16,7 +16,17 @@ from openpyxl.utils.datetime import from_excel
 from openpyxl.utils.exceptions import InvalidFileException
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+_PACKAGE_PROJECT_ROOT = Path(__file__).resolve().parents[3]
+_ROOT_CANDIDATES = (_PACKAGE_PROJECT_ROOT, Path.cwd())
+PROJECT_ROOT = next(
+    (
+        candidate
+        for candidate in _ROOT_CANDIDATES
+        if (candidate / "Maquinaria.xlsx").is_file()
+        and (candidate / "SeguimientoLogistica.xlsx").is_file()
+    ),
+    _PACKAGE_PROJECT_ROOT,
+)
 SOURCE_FILE = PROJECT_ROOT / "Maquinaria.xlsx"
 LOGISTICS_SOURCE_FILE = PROJECT_ROOT / "SeguimientoLogistica.xlsx"
 
