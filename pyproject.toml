@@ -11,6 +11,9 @@ dependencies = [
     "openpyxl>=3.1,<4",
 ]
 
+[project.optional-dependencies]
+render = ["gunicorn>=23,<24"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

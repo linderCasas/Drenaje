@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: proyecto-drenaje
+    runtime: python
+    buildCommand: 'pip install ".[render]"'
+    startCommand: 'gunicorn main:app --bind 0.0.0.0:$PORT'

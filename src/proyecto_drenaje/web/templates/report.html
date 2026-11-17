@@ -44,12 +44,22 @@
     .logistics-table td:first-child, .logistics-table th:first-child { width: 52px; text-align: center; }
     .logistics-table td:nth-child(n+4), .logistics-table th:nth-child(n+4) { text-align: right; white-space: nowrap; }
     .logistics-table tfoot td { border-bottom: 0; background: var(--teal-soft); color: var(--navy); font-weight: 750; }
-    .detail-table-wrap { max-height: 560px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
-    .detail-table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 12px; }
+    .matrix-groups { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; }
+    .matrix-partida + .matrix-partida { border-top: 1px solid var(--line); }
+    .matrix-groups details > summary { display: flex; justify-content: space-between; align-items: center; gap: 14px; cursor: pointer; list-style: none; }
+    .matrix-groups summary::-webkit-details-marker { display: none; }
+    .matrix-groups details > summary::before { content: "+"; flex: 0 0 18px; color: var(--teal); font-size: 18px; font-weight: 700; text-align: center; }
+    .matrix-groups details[open] > summary::before { content: "−"; }
+    .matrix-partida > summary { background: #f7f9fa; padding: 13px 15px; color: var(--navy); font-size: 13px; font-weight: 750; }
+    .matrix-fund { margin-left: 18px; border-top: 1px solid var(--line); }
+    .matrix-fund > summary { padding: 10px 14px; color: var(--ink); font-size: 12px; font-weight: 650; }
+    .matrix-summary-total { color: var(--muted); font-size: 11px; font-weight: 650; text-align: right; white-space: nowrap; }
+    .detail-table-wrap { max-height: 360px; overflow: auto; margin: 0 12px 12px 14px; border: 1px solid var(--line); border-radius: 8px; }
+    .detail-table { width: 100%; min-width: 560px; border-collapse: collapse; font-size: 12px; }
     .detail-table th, .detail-table td { border-bottom: 1px solid var(--line); padding: 9px 11px; text-align: left; vertical-align: top; }
     .detail-table th { position: sticky; top: 0; z-index: 1; background: #f7f9fa; color: var(--muted); font-size: 11px; font-weight: 750; text-transform: uppercase; }
     .detail-table td:last-child, .detail-table th:last-child { text-align: right; white-space: nowrap; }
-    .detail-table tfoot td { position: sticky; bottom: 0; background: var(--teal-soft); color: var(--navy); font-weight: 750; }
+    .matrix-total { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; border-radius: 9px; background: var(--teal-soft); padding: 12px 15px; color: var(--navy); font-size: 13px; font-weight: 750; }
     .logistics-source { margin: 13px 0 0; color: var(--muted); font-size: 11px; }
     .card { border: 1px solid var(--line); border-radius: 15px; background: var(--paper); box-shadow: var(--shadow); }
     .kpi { min-height: 138px; padding: 18px 19px; }
@@ -183,19 +193,29 @@
       <div class="panel-head">
         <div><h2 id="logistics-detail-title">Detalle de seguimiento logístico</h2></div>
       </div>
-      <div class="detail-table-wrap">
-        <table class="detail-table">
-          <thead>
-            <tr><th scope="col">PARTIDA</th><th scope="col">FUNDO</th><th scope="col">NRO ORDEN</th><th scope="col">PROVEEDOR</th><th scope="col">TOTAL $</th></tr>
-          </thead>
-          <tbody>
-            {% for item in logistics.detail_records %}
-            <tr><td>{{ item.partida }}</td><td>{{ item.fund }}</td><td>{{ item.order_number }}</td><td>{{ item.supplier }}</td><td>{{ item.total_usd }}</td></tr>
-            {% endfor %}
-          </tbody>
-          <tfoot><tr><td colspan="4">TOTAL GENERAL</td><td>{{ logistics.detail_total_usd }}</td></tr></tfoot>
-        </table>
+      <div class="matrix-groups">
+        {% for partida in logistics.partida_groups %}
+        <details class="matrix-partida">
+          <summary><span>{{ partida.partida }}</span><span class="matrix-summary-total">{{ partida.records }} registros · {{ partida.total_usd }}</span></summary>
+          {% for fund in partida.funds %}
+          <details class="matrix-fund">
+            <summary><span>{{ fund.fund }}</span><span class="matrix-summary-total">{{ fund.records|length }} registros · {{ fund.total_usd }}</span></summary>
+            <div class="detail-table-wrap">
+              <table class="detail-table">
+                <thead><tr><th scope="col">NRO ORDEN</th><th scope="col">PROVEEDOR</th><th scope="col">TOTAL $</th></tr></thead>
+                <tbody>
+                  {% for item in fund.records %}
+                  <tr><td>{{ item.order_number }}</td><td>{{ item.supplier }}</td><td>{{ item.total_usd }}</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </details>
+          {% endfor %}
+        </details>
+        {% endfor %}
       </div>
+      <div class="matrix-total"><span>TOTAL GENERAL</span><span>{{ logistics.detail_total_usd }}</span></div>
     </section>
 
     <section class="kpis" aria-label="Indicadores principales">

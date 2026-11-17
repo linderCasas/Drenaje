@@ -37,10 +37,23 @@ class ActivityCost:
 
 @dataclass(frozen=True)
 class LogisticsRecord:
-    partida: str
-    fund: str
     order_number: str
     supplier: str
+    total_usd: str
+
+
+@dataclass(frozen=True)
+class LogisticsFundGroup:
+    fund: str
+    records: list[LogisticsRecord]
+    total_usd: str
+
+
+@dataclass(frozen=True)
+class LogisticsPartidaGroup:
+    partida: str
+    funds: list[LogisticsFundGroup]
+    records: int
     total_usd: str
 
 
@@ -52,7 +65,7 @@ class LogisticsSummary:
     total_budget_usd: str
     total_executed_usd: str
     activity_costs: list[ActivityCost]
-    detail_records: list[LogisticsRecord]
+    partida_groups: list[LogisticsPartidaGroup]
     detail_total_usd: str
 
 
@@ -224,7 +237,8 @@ def load_logistics_summary(
         priced_records = 0
         project_labels: set[str] = set()
         partida_totals: dict[str, float] = {}
-        detail_records: list[LogisticsRecord] = []
+        fund_totals: dict[str, dict[str, float]] = {}
+        records_by_partida_and_fund: dict[str, dict[str, list[LogisticsRecord]]] = {}
         for row in worksheet.iter_rows(min_row=2, values_only=True):
             project_value = row[columns["PROYECTO"]]
             project = " ".join(str(project_value or "").split()).upper()
@@ -235,7 +249,10 @@ def load_logistics_summary(
             project_labels.add(project)
             partida_value = " ".join(str(row[columns["PARTIDA"]] or "").split())
             partida = partida_value or "(Sin partida)"
+            fund = _display_value(row[columns["FUNDO"]])
             partida_totals.setdefault(partida, 0.0)
+            fund_totals.setdefault(partida, {}).setdefault(fund, 0.0)
+            records_by_partida_and_fund.setdefault(partida, {}).setdefault(fund, [])
             amount = row[columns["TOTAL $"]]
             if amount is None:
                 amount_display = "—"
@@ -250,13 +267,12 @@ def load_logistics_summary(
                     )
                 amount_number = float(amount)
                 partida_totals[partida] += amount_number
+                fund_totals[partida][fund] += amount_number
                 priced_records += 1
                 amount_display = f"US$ {_format_number(amount_number)}"
 
-            detail_records.append(
+            records_by_partida_and_fund[partida][fund].append(
                 LogisticsRecord(
-                    partida=partida,
-                    fund=_display_value(row[columns["FUNDO"]]),
                     order_number=_display_value(row[columns["NRO ORDEN"]]),
                     supplier=_display_value(row[columns["PROVEEDOR"]]),
                     total_usd=amount_display,
@@ -382,6 +398,29 @@ def load_logistics_summary(
                 f"Faltan los ID: {missing_ids}."
             )
 
+        partida_groups = [
+            LogisticsPartidaGroup(
+                partida=partida,
+                records=sum(len(fund_records) for fund_records in funds.values()),
+                total_usd=f"US$ {_format_number(partida_totals[partida])}",
+                funds=[
+                    LogisticsFundGroup(
+                        fund=fund,
+                        records=fund_records,
+                        total_usd=f"US$ {_format_number(fund_totals[partida][fund])}",
+                    )
+                    for fund, fund_records in sorted(
+                        funds.items(),
+                        key=lambda item: (-fund_totals[partida][item[0]], item[0]),
+                    )
+                ],
+            )
+            for partida, funds in sorted(
+                records_by_partida_and_fund.items(),
+                key=lambda item: (-partida_totals[item[0]], item[0]),
+            )
+        ]
+
         return LogisticsSummary(
             project=", ".join(sorted(project_labels)),
             records=records,
@@ -389,7 +428,7 @@ def load_logistics_summary(
             total_budget_usd=f"US$ {_format_number(total_budget)}",
             total_executed_usd=f"US$ {_format_number(total_executed)}",
             activity_costs=activity_costs,
-            detail_records=detail_records,
+            partida_groups=partida_groups,
             detail_total_usd=f"US$ {_format_number(sum(partida_totals.values()))}",
         )
     finally:
