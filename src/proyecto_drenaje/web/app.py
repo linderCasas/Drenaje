@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import re
 import unicodedata
+from collections import defaultdict
 from io import BytesIO
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -32,6 +33,7 @@ PROJECT_ROOT = next(
 )
 SOURCE_FILE = PROJECT_ROOT / "Maquinaria.xlsx"
 LOGISTICS_SOURCE_FILE = PROJECT_ROOT / "SeguimientoLogistica.xlsx"
+WATER_QUALITY_SOURCE_FILE = PROJECT_ROOT / "Calidad de agua_anegamientos.xlsx"
 
 app = Flask(__name__)
 
@@ -783,6 +785,174 @@ def load_report_header(source_file: Path = SOURCE_FILE) -> ReportHeader:
         workbook.close()
 
 
+def _quality_measurement_date(value: Any, epoch: datetime) -> tuple[date, bool]:
+    if isinstance(value, (datetime, date)) or isinstance(value, (int, float)):
+        return _as_date(value, epoch), False
+    text = str(value or "").strip()
+    for pattern in ("%d/%m/%Y", "%d/%m/%y", "%Y-%m-%d", "%Y-%m-%d %H:%M:%S"):
+        try:
+            return datetime.strptime(text, pattern).date(), False
+        except ValueError:
+            continue
+
+    # One source date is stored as 10/1102026 instead of 10/11/2026.
+    if text == "10/1102026":
+        return date(2026, 11, 10), True
+    raise ReportDataError(f"No se pudo interpretar la fecha del registro: {value!r}.")
+
+
+def load_water_quality_chart(
+    source_file: Path = WATER_QUALITY_SOURCE_FILE,
+) -> dict[str, Any]:
+    if not source_file.is_file():
+        raise ReportDataError(f"No se encontró la base de calidad de agua: {source_file}")
+    try:
+        workbook = load_workbook(source_file, read_only=True, data_only=True)
+    except (BadZipFile, InvalidFileException, OSError) as error:
+        raise ReportDataError("No se pudo abrir Calidad de agua_anegamientos.xlsx.") from error
+
+    try:
+        if "bd" not in workbook.sheetnames:
+            raise ReportDataError("Falta la hoja bd en Calidad de agua_anegamientos.xlsx.")
+
+        worksheet = workbook["bd"]
+        rows = worksheet.iter_rows(values_only=True)
+        headers = next(rows, None)
+        if headers is None:
+            raise ReportDataError("La hoja bd de calidad de agua está vacía.")
+        columns = {
+            _normalize_label(value): index
+            for index, value in enumerate(headers)
+            if value is not None
+        }
+        required = {"fundo", "fecha", "pozas", "ce 1000"}
+        if not required.issubset(columns):
+            raise ReportDataError("La hoja bd debe incluir FUNDO, FECHA, Pozas y CE 1000.")
+
+        valid_min = Decimal("0")
+        valid_max = Decimal("5")
+        threshold_max = Decimal("1.2")
+        threshold_note = "Umbral máximo de referencia"
+        if "Listas" in workbook.sheetnames:
+            config = workbook["Listas"].iter_rows(min_row=1, max_row=2, values_only=True)
+            config_header = next(config, ())
+            config_values = next(config, ())
+            config_columns = {
+                _normalize_label(value): index
+                for index, value in enumerate(config_header)
+                if value is not None
+            }
+            for key, target in (("min valido", "min"), ("max valido", "max"), ("umbral max", "threshold")):
+                index = config_columns.get(key)
+                parsed = _numeric_join_key(config_values[index]) if index is not None else None
+                if parsed is None:
+                    continue
+                if target == "min":
+                    valid_min = parsed
+                elif target == "max":
+                    valid_max = parsed
+                else:
+                    threshold_max = parsed
+            note_index = config_columns.get("nota")
+            if note_index is not None and config_values[note_index]:
+                threshold_note = str(config_values[note_index]).strip()
+
+        visible_index = columns.get("visible")
+        measurements: dict[str, dict[str, dict[date, list[Decimal]]]] = defaultdict(
+            lambda: defaultdict(lambda: defaultdict(list))
+        )
+        all_values: list[Decimal] = []
+        invalid_values = 0
+        corrected_date_values: set[str] = set()
+        invalid_dates = 0
+        for row in rows:
+            if visible_index is not None:
+                visible = _numeric_join_key(row[visible_index])
+                if visible is None or visible != Decimal(1):
+                    continue
+            fund = " ".join(str(row[columns["fundo"]] or "").split())
+            pond = " ".join(str(row[columns["pozas"]] or "").split())
+            if not fund or not pond:
+                continue
+            raw_date = row[columns["fecha"]]
+            try:
+                measurement_date, corrected = _quality_measurement_date(raw_date, workbook.epoch)
+            except ReportDataError:
+                invalid_dates += 1
+                continue
+            if corrected:
+                corrected_date_values.add(str(raw_date))
+            raw_value = row[columns["ce 1000"]]
+            value = _numeric_join_key(raw_value)
+            if value is None or not valid_min <= value <= valid_max:
+                invalid_values += 1
+                continue
+            measurements[fund][pond][measurement_date].append(value)
+            all_values.append(value)
+
+        if not all_values:
+            raise ReportDataError("No se encontraron mediciones válidas de CE 1000.")
+
+        palette_by_fund = {
+            "Pirona": ("#1A428A", "#3672B9", "#668CC3", "#174E75", "#3B5E96", "#7F9FC9"),
+            "Hefei": ("#008AA3", "#00b4d8", "#54C6D8"),
+            "Mosqueta": ("#c1121f",),
+        }
+        fallback_palette = ("#57a773", "#8152a6", "#c59600", "#536d82", "#a66321", "#6b7280")
+        funds = sorted(measurements)
+        series = []
+        for fund_index, fund in enumerate(funds):
+            fund_palette = palette_by_fund.get(fund, fallback_palette)
+            for pond_index, (pond, pond_data) in enumerate(sorted(measurements[fund].items())):
+                points = [
+                    {
+                        "date": measurement_date.isoformat(),
+                        "label": measurement_date.strftime("%d/%m/%Y"),
+                        "value": round(float(sum(values) / len(values)), 4),
+                        "samples": len(values),
+                    }
+                    for measurement_date, values in sorted(pond_data.items())
+                ]
+                series.append({
+                    "key": f"{fund}::{pond}",
+                    "fund": fund,
+                    "pond": pond,
+                    "color": fund_palette[pond_index % len(fund_palette)],
+                    "points": points,
+                })
+
+        all_dates = sorted({measurement_date for fund_data in measurements.values() for pond_data in fund_data.values() for measurement_date in pond_data})
+        average = sum(all_values) / len(all_values)
+        chart_note_parts = [
+            f"Se omitieron {invalid_values} valores fuera del rango válido {_format_number(float(valid_min), 1)}–{_format_number(float(valid_max), 1)} d/m."
+        ] if invalid_values else []
+        if corrected_date_values:
+            chart_note_parts.append(f"Se normalizó el formato de {len(corrected_date_values)} fecha(s) del archivo fuente.")
+        if invalid_dates:
+            chart_note_parts.append(f"Se omitieron {invalid_dates} registros con fecha ilegible.")
+
+        return {
+            "series": series,
+            "start_date": all_dates[0].strftime("%d/%m/%Y"),
+            "end_date": all_dates[-1].strftime("%d/%m/%Y"),
+            "dates": [item.isoformat() for item in all_dates],
+            "threshold_max": float(threshold_max),
+            "threshold_note": threshold_note,
+            "valid_range": f"{_format_number(float(valid_min), 1)}–{_format_number(float(valid_max), 1)} d/m",
+            "valid_measurements": len(all_values),
+            "invalid_measurements": invalid_values,
+            "corrected_dates": len(corrected_date_values),
+            "fund_count": len(funds),
+            "pond_count": len(series),
+            "average": f"{_format_number(float(average), 3)} d/m",
+            "maximum": f"{_format_number(float(max(all_values)), 3)} d/m",
+            "minimum": f"{_format_number(float(min(all_values)), 3)} d/m",
+            "chart_note": " ".join(chart_note_parts),
+        }
+    finally:
+        workbook.close()
+
+
 def load_report_data(source_file: Path = SOURCE_FILE) -> ReportData:
     if not source_file.is_file():
         raise ReportDataError(f"No se encontró el archivo fuente: {source_file}")
@@ -946,6 +1116,21 @@ def load_report_data(source_file: Path = SOURCE_FILE) -> ReportData:
 
 
 @app.get("/")
+def home() -> str:
+    return render_template("home.html")
+
+
+@app.get("/calidad-agua-anegamiento")
+def water_quality_report() -> str | tuple[str, int]:
+    try:
+        chart = load_water_quality_chart()
+    except ReportDataError as error:
+        app.logger.error("No se pudo generar el reporte de calidad de agua: %s", error)
+        return render_template("error.html", message=str(error)), 503
+    return render_template("water_quality_dashboard.html", chart=chart)
+
+
+@app.get("/maquinaria")
 def machinery_report() -> str | tuple[str, int]:
     try:
         logistics = load_logistics_summary()

@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Comportamiento diario de CE 1000 por fundo en las pozas de anegamiento.">
+  <title>Calidad de agua · Anegamiento | Unifrutti</title>
+  <style>
+    :root { --navy:#1A428A; --cyan:#00b4d8; --red:#c1121f; --ink:#172a3a; --muted:#627486; --line:#e2e9ed; --canvas:#f3f6f7; --white:#fff; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--canvas); color:var(--ink); font:14px/1.5 "Segoe UI",Arial,sans-serif; }
+    .page { width:min(1480px,100%); margin:0 auto; padding:25px 30px 42px; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:30px; }
+    .brand { display:flex; align-items:center; gap:11px; color:var(--navy); text-decoration:none; }
+    .brand img { width:34px; height:44px; object-fit:contain; }
+    .brand strong { display:block; font-size:13px; letter-spacing:.08em; }
+    .brand small { display:block; color:var(--muted); font-size:10px; letter-spacing:.08em; }
+    .home-link { display:inline-flex; align-items:center; gap:7px; border:1px solid #d7e0e6; border-radius:9px; background:#fff; padding:8px 12px; color:var(--navy); font-size:12px; font-weight:700; text-decoration:none; }
+    .home-link:hover { border-color:var(--cyan); color:var(--cyan); }
+    .eyebrow { margin:0 0 6px; color:var(--cyan); font-size:11px; font-weight:800; letter-spacing:.13em; text-transform:uppercase; }
+    h1 { margin:0; color:var(--navy); font-size:clamp(28px,4vw,42px); line-height:1.1; letter-spacing:-.035em; }
+    .intro { max-width:760px; margin:9px 0 20px; color:var(--muted); }
+    .report-meta { display:flex; flex-wrap:wrap; align-items:center; gap:9px; margin-bottom:14px; }
+    .measure-chip, .period-chip { display:inline-flex; align-items:center; gap:8px; border:1px solid #d6e8ed; border-radius:999px; background:#fff; padding:7px 12px; color:var(--navy); font-size:10px; font-weight:800; letter-spacing:.06em; }
+    .measure-dot { width:8px; height:8px; border-radius:50%; background:var(--cyan); }
+    .period-chip { border-color:var(--line); color:var(--muted); font-weight:650; letter-spacing:0; }
+    .kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:16px; }
+    .kpi { min-height:103px; border:1px solid var(--line); border-radius:13px; background:#fff; padding:14px 16px; box-shadow:0 7px 20px rgba(27,55,74,.04); }
+    .kpi-label { color:var(--muted); font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+    .kpi-value { margin-top:8px; color:var(--navy); font-size:23px; font-weight:800; letter-spacing:-.035em; line-height:1.15; }
+    .kpi-note { margin-top:4px; color:#8594a1; font-size:10px; }
+    .chart-card { overflow:hidden; border:1px solid var(--line); border-radius:16px; background:#fff; box-shadow:0 12px 32px rgba(27,55,74,.07); }
+    .chart-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:20px 23px 8px; }
+    .chart-head h2 { margin:0; color:var(--navy); font-size:18px; }
+    .chart-head p { margin:4px 0 0; color:var(--muted); font-size:11px; }
+    .series-count { flex:0 0 auto; border-radius:999px; background:#eff5f9; padding:5px 9px; color:var(--navy); font-size:10px; font-weight:750; }
+    .chart-layout { display:grid; grid-template-columns:minmax(0,1fr) 180px; align-items:center; gap:9px; padding:0 20px 12px 10px; }
+    .chart { display:block; width:100%; height:auto; min-height:300px; overflow:visible; }
+    .chart text { fill:#566778; font:11px "Segoe UI",Arial,sans-serif; }
+    .chart .axis-title { fill:#35495e; font-size:13px; font-weight:650; }
+    .chart .grid-line { stroke:#e0e6eb; stroke-width:1; }
+    .chart .axis-line { stroke:#9aa9b5; stroke-width:1.2; }
+    .chart .threshold-label { fill:var(--red); font-size:10px; font-weight:750; }
+    .legend { display:grid; gap:8px; align-content:center; padding:12px 0; }
+    .legend-title { margin:0 0 3px; color:var(--muted); font-size:9px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+    .legend-group { display:grid; gap:1px; min-width:0; }
+    .legend-fund { width:100%; border:0; border-radius:6px; background:#f1f5f8; padding:6px 8px; color:var(--navy); cursor:pointer; font:inherit; font-size:10px; font-weight:800; text-align:left; }
+    .legend-fund:hover, .legend-fund[aria-pressed="false"] { background:#e8edf1; }
+    .legend-fund[aria-pressed="false"] { opacity:.5; }
+    .legend-item { display:flex; width:100%; align-items:center; gap:8px; border:1px solid transparent; border-radius:7px; background:transparent; padding:6px 7px; color:#465567; cursor:pointer; font:inherit; font-size:11px; text-align:left; }
+    .legend-item { padding-left:13px; }
+    .legend-item:hover, .legend-item[aria-pressed="false"] { background:#f3f6f8; }
+    .legend-item[aria-pressed="false"] { opacity:.48; }
+    .legend-line { width:25px; height:0; flex:0 0 25px; border-top:3px solid var(--series-color); border-radius:5px; }
+    .legend-limit { display:flex; align-items:center; gap:8px; margin:8px 7px 0; color:#7e4a4e; font-size:10px; }
+    .legend-limit-line { width:25px; height:0; border-top:2px dashed var(--red); }
+    .chart-foot { display:flex; justify-content:space-between; gap:12px; border-top:1px solid #edf1f3; padding:10px 20px; color:var(--muted); font-size:10px; }
+    .chart-foot strong { color:var(--red); }
+    .data-note { margin:14px 0 0; border-left:3px solid var(--cyan); border-radius:0 8px 8px 0; background:#f4fafb; padding:10px 13px; color:var(--muted); font-size:11px; }
+    .data-note strong { color:var(--navy); }
+    footer { display:flex; justify-content:space-between; gap:14px; margin-top:21px; color:var(--muted); font-size:10px; }
+    @media (max-width:900px) { .chart-layout { grid-template-columns:1fr; } .legend { grid-template-columns:repeat(3,minmax(0,1fr)); padding:0 12px 12px; } .legend-title,.legend-limit { grid-column:1/-1; } }
+    @media (max-width:650px) {
+      .page { padding:18px 14px 30px; }
+      .topbar { margin-bottom:24px; }
+      .kpis { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+      .kpi { min-height:92px; padding:12px; }
+      .kpi-value { font-size:20px; }
+      .chart-head { padding:17px 15px 7px; }
+      .chart-layout { padding:0 5px 10px; }
+      .chart { min-height:230px; }
+      .legend { grid-template-columns:repeat(2,minmax(0,1fr)); gap:3px; }
+      .chart-foot { flex-direction:column; padding:9px 13px; }
+      footer { flex-direction:column; }
+    }
+    @media (max-width:420px) { .brand img { width:29px; height:39px; } .brand strong { font-size:11px; } .brand small { font-size:8px; } .home-link { padding:7px 9px; } .period-chip { width:100%; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <a class="brand" href="{{ url_for('home') }}" aria-label="Volver al inicio">
+        <img src="{{ url_for('static', filename='logo_unifrutti.png') }}" alt="">
+        <span><strong>UNIFRUTTI</strong><small>PROYECTO DRENAJE INTEGRAL · 2026</small></span>
+      </a>
+      <a class="home-link" href="{{ url_for('home') }}"><span aria-hidden="true">‹</span> Inicio</a>
+    </header>
+    <p class="eyebrow">Reporte 02 · Anegamiento</p>
+    <h1>Calidad de agua</h1>
+    <p class="intro">Tendencia diaria de CE 1000 para cada poza, agrupada por fundo.</p>
+    <div class="report-meta">
+      <span class="measure-chip"><span class="measure-dot" aria-hidden="true"></span>CE 1000 (d/m) · DIARIO</span>
+      <span class="period-chip">{{ chart.start_date }} — {{ chart.end_date }}</span>
+    </div>
+    <section class="kpis" aria-label="Resumen ejecutivo de calidad de agua">
+      <article class="kpi"><div class="kpi-label">Promedio general</div><div class="kpi-value">{{ chart.average }}</div><div class="kpi-note">Mediciones válidas del periodo</div></article>
+      <article class="kpi"><div class="kpi-label">Máximo observado</div><div class="kpi-value">{{ chart.maximum }}</div><div class="kpi-note">Valor CE 1000 más alto</div></article>
+      <article class="kpi"><div class="kpi-label">Mínimo observado</div><div class="kpi-value">{{ chart.minimum }}</div><div class="kpi-note">Valor CE 1000 más bajo</div></article>
+      <article class="kpi"><div class="kpi-label">Mediciones válidas</div><div class="kpi-value">{{ chart.valid_measurements }}</div><div class="kpi-note">{{ chart.fund_count }} fundos · {{ chart.pond_count }} pozas</div></article>
+    </section>
+    <section class="chart-card" aria-labelledby="chart-title">
+      <div class="chart-head">
+        <div><h2 id="chart-title">Comportamiento de calidad de agua</h2><p>CE 1000 diario por poza · seleccione una poza o un fundo en la leyenda.</p></div>
+        <span class="series-count">{{ chart.pond_count }} pozas</span>
+      </div>
+      <div class="chart-layout">
+        <svg id="quality-chart" class="chart" viewBox="0 0 1120 500" role="img" aria-label="Tendencia diaria de CE 1000 por poza, agrupada por fundo"></svg>
+        <div class="legend" aria-label="Mostrar u ocultar pozas agrupadas por fundo">
+          <p class="legend-title">Fundos y pozas</p>
+          {% for fund, fund_series in chart.series|groupby('fund') %}
+          <div class="legend-group">
+            <button class="legend-fund" type="button" data-fund-toggle="{{ fund }}" aria-pressed="true">{{ fund }}</button>
+            {% for series in fund_series %}
+            <button class="legend-item" type="button" data-series-key="{{ series.key }}" aria-pressed="true"><span class="legend-line" style="--series-color:{{ series.color }}"></span><span>{{ series.pond }}</span></button>
+            {% endfor %}
+          </div>
+          {% endfor %}
+          <div class="legend-limit"><span class="legend-limit-line"></span><span>Umbral máx. {{ "%.2f"|format(chart.threshold_max) }} d/m</span></div>
+        </div>
+      </div>
+      <div class="chart-foot"><span>Eje Y: <strong>CE 1000 (d/m)</strong></span><span>Umbral máximo de referencia · {{ chart.threshold_note }}</span></div>
+    </section>
+    <p class="data-note"><strong>Agregación y calidad:</strong> {{ chart.valid_measurements }} mediciones válidas dentro del rango {{ chart.valid_range }}; se promedian por poza y fecha, y las pozas se agrupan por fundo. {{ chart.chart_note }}</p>
+    <footer><span>UNIFRUTTI · GESTIÓN DE RIEGO</span><span>CALIDAD DE AGUA · ANEGAMIENTO</span></footer>
+  </main>
+  <script>
+    const qualityData = {{ chart|tojson }};
+    const svg = document.getElementById("quality-chart");
+    const svgNS = "http://www.w3.org/2000/svg";
+    const visibleSeries = new Set(qualityData.series.map((series) => series.key));
+    const plot = { left: 78, top: 28, right: 1088, bottom: 415 };
+    const chartWidth = 1120;
+    const chartHeight = 500;
+    const allValues = qualityData.series.flatMap((series) => series.points.map((point) => point.value));
+    const yMax = Math.max(1.4, Math.ceil(Math.max(...allValues, qualityData.threshold_max) / 0.2) * 0.2);
+    const startTime = Date.parse(`${qualityData.dates[0]}T00:00:00Z`);
+    const endTime = Date.parse(`${qualityData.dates[qualityData.dates.length - 1]}T00:00:00Z`);
+    const xPosition = (isoDate) => {
+      const time = Date.parse(`${isoDate}T00:00:00Z`);
+      return plot.left + ((time - startTime) / Math.max(1, endTime - startTime)) * (plot.right - plot.left);
+    };
+    const yPosition = (value) => plot.bottom - (value / yMax) * (plot.bottom - plot.top);
+    function addSvg(name, attributes = {}, parent = svg, text = null) {
+      const element = document.createElementNS(svgNS, name);
+      Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, String(value)));
+      if (text !== null) element.textContent = text;
+      parent.appendChild(element);
+      return element;
+    }
+    function drawChart() {
+      svg.replaceChildren();
+      const yStep = 0.2;
+      for (let value = 0; value <= yMax + 0.001; value += yStep) {
+        const y = yPosition(value);
+        addSvg("line", { x1: plot.left, y1: y, x2: plot.right, y2: y, class: "grid-line" });
+        addSvg("text", { x: plot.left - 12, y: y + 4, "text-anchor": "end" }, svg, value.toFixed(2));
+      }
+      const tickIndexes = [...new Set(Array.from({ length: 7 }, (_, i) => Math.round(i * (qualityData.dates.length - 1) / 6)))];
+      const dateLabel = new Map();
+      qualityData.series.forEach((series) => series.points.forEach((point) => dateLabel.set(point.date, point.label)));
+      tickIndexes.forEach((index) => {
+        const iso = qualityData.dates[index];
+        const x = xPosition(iso);
+        addSvg("line", { x1: x, y1: plot.top, x2: x, y2: plot.bottom, class: "grid-line" });
+        addSvg("text", { x, y: plot.bottom + 23, "text-anchor": "middle" }, svg, (dateLabel.get(iso) || "").slice(0, 5));
+      });
+      addSvg("path", { d: `M${plot.left} ${plot.top}V${plot.bottom}H${plot.right}`, class: "axis-line", fill: "none" });
+      addSvg("text", { x: (plot.left + plot.right) / 2, y: chartHeight - 10, class: "axis-title", "text-anchor": "middle" }, svg, "Fecha");
+      addSvg("text", { x: 23, y: (plot.top + plot.bottom) / 2, class: "axis-title", "text-anchor": "middle", transform: `rotate(-90 23 ${(plot.top + plot.bottom) / 2})` }, svg, "CE 1000 (d/m)");
+      const thresholdY = yPosition(qualityData.threshold_max);
+      addSvg("line", { x1: plot.left, y1: thresholdY, x2: plot.right, y2: thresholdY, stroke: "#c1121f", "stroke-width": 2, "stroke-dasharray": "8 6" });
+      addSvg("text", { x: plot.right - 5, y: thresholdY - 7, class: "threshold-label", "text-anchor": "end" }, svg, `Umbral máx. ${qualityData.threshold_max.toFixed(2)}`);
+
+      qualityData.series.filter((series) => visibleSeries.has(series.key)).forEach((series) => {
+        const coordinates = series.points.map((point) => [xPosition(point.date), yPosition(point.value)]);
+        const path = coordinates.map(([x, y], index) => `${index ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+        addSvg("path", { d: path, fill: "none", stroke: series.color, "stroke-width": 3, "stroke-linecap": "round", "stroke-linejoin": "round" });
+        series.points.forEach((point, index) => {
+          const circle = addSvg("circle", { cx: coordinates[index][0], cy: coordinates[index][1], r: 3.3, fill: "#fff", stroke: series.color, "stroke-width": 2 });
+          addSvg("title", {}, circle, `${series.fund} · ${series.pond} · ${point.label} · ${point.value.toLocaleString("es-PE", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} d/m · ${point.samples} lecturas`);
+        });
+      });
+    }
+    document.querySelectorAll("[data-series-key]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const key = button.getAttribute("data-series-key");
+        const series = qualityData.series.find((item) => item.key === key);
+        if (visibleSeries.has(key)) visibleSeries.delete(key);
+        else visibleSeries.add(key);
+        button.setAttribute("aria-pressed", String(visibleSeries.has(key)));
+        document.querySelectorAll("[data-fund-toggle]").forEach((fundButton) => {
+          if (fundButton.getAttribute("data-fund-toggle") !== series.fund) return;
+          const fundSeries = qualityData.series.filter((item) => item.fund === series.fund);
+          fundButton.setAttribute("aria-pressed", String(fundSeries.every((item) => visibleSeries.has(item.key))));
+        });
+        drawChart();
+      });
+    });
+    document.querySelectorAll("[data-fund-toggle]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const fund = button.getAttribute("data-fund-toggle");
+        const fundSeries = qualityData.series.filter((series) => series.fund === fund);
+        const showAll = !fundSeries.every((series) => visibleSeries.has(series.key));
+        fundSeries.forEach((series) => showAll ? visibleSeries.add(series.key) : visibleSeries.delete(series.key));
+        button.setAttribute("aria-pressed", String(showAll));
+        document.querySelectorAll("[data-series-key]").forEach((pondButton) => {
+          const key = pondButton.getAttribute("data-series-key");
+          pondButton.setAttribute("aria-pressed", String(visibleSeries.has(key)));
+        });
+        drawChart();
+      });
+    });
+    drawChart();
+  </script>
+</body>
+</html>

@@ -310,6 +310,7 @@
   <aside class="sidebar">
     <p class="sidebar-label">SECCIONES DEL REPORTE</p>
     <nav aria-label="Secciones del reporte">
+      <a class="sidebar-link" href="/"><span class="sidebar-index">00</span><span>Inicio</span></a>
       <a class="sidebar-link active" href="#resumen"><span class="sidebar-index">01</span><span>Resumen</span></a>
       <div class="sidebar-menu-group">
         <button class="sidebar-link sidebar-parent" type="button" data-sidebar-toggle aria-expanded="true" aria-controls="maquinaria-subnav"><span class="sidebar-index">02</span><span>Maquinaria</span><span class="sidebar-caret" aria-hidden="true">&#9662;</span></button>
@@ -528,6 +529,7 @@
     }
     document.querySelectorAll("a.sidebar-link").forEach((link) => {
       link.addEventListener("click", (event) => {
+        if (!link.getAttribute("href").startsWith("#")) return;
         event.preventDefault();
         const viewId = link.getAttribute("href").slice(1);
         showReportView(viewId);
