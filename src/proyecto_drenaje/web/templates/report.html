@@ -32,12 +32,20 @@
     .sidebar-label { margin: 0 0 2px 10px; color: #c9d7f0; font-size: 10px; font-weight: 750; letter-spacing: .12em; }
     .sidebar nav { display: grid; gap: 7px; }
     .sidebar-link { display: flex; align-items: center; gap: 12px; min-height: 46px; border-radius: 9px; padding: 9px 10px; color: #e8eef9; font-size: 13px; font-weight: 650; text-decoration: none; }
+    .sidebar-menu-group, .sidebar-subnav { display: grid; gap: 4px; }
+    .sidebar-parent { width: 100%; border: 0; background: transparent; cursor: pointer; font: inherit; text-align: left; }
+    .sidebar-caret { margin-left: auto; transition: transform .16s ease; }
+    .sidebar-parent[aria-expanded="false"] .sidebar-caret { transform: rotate(-90deg); }
+    .sidebar-subnav[hidden] { display: none; }
     .sidebar-link:hover, .sidebar-link.active { background: var(--cyan-light); color: var(--navy); }
     .sidebar-index { color: #b9c9e4; font-size: 10px; font-weight: 750; }
     .sidebar-link.active .sidebar-index, .sidebar-link:hover .sidebar-index { color: var(--red); }
-    #resumen, #maquinaria { scroll-margin-top: 22px; }
+    #resumen, #maquinaria, #costos { scroll-margin-top: 22px; }
+    .sidebar-subitem { margin-left: 26px; min-height: 38px; border-left: 2px solid rgba(144, 224, 239, .55); border-radius: 0 8px 8px 0; padding-left: 12px; font-size: 12px; }
     .report-view[hidden] { display: none; }
     .machinery-section { min-height: 220px; margin-top: 22px; padding: 22px 23px; }
+    .machinery-costs-panel { margin-top: 18px; }
+    .machinery-costs-label { margin: 0 0 4px; color: var(--muted); font-size: 10px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
     .machinery-section h2 { margin: 0; }
     .topline { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 25px; }
     .brand { display: flex; align-items: center; gap: 11px; color: var(--navy); font-size: 13px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
@@ -68,22 +76,52 @@
     .logistics-table.machinery-table { width: 100%; min-width: 0; table-layout: fixed; }
     .machinery-table { width: 100%; min-width: 0; table-layout: fixed; }
     .machinery-table th, .machinery-table td { text-align: left; white-space: normal; overflow-wrap: anywhere; vertical-align: middle; }
-    .machinery-table th:nth-child(1), .machinery-table td:nth-child(1) { width: 9%; }
-    .machinery-table th:nth-child(2), .machinery-table td:nth-child(2) { width: 9%; }
-    .machinery-table th:nth-child(3), .machinery-table td:nth-child(3) { width: 8%; }
-    .machinery-table th:nth-child(4), .machinery-table td:nth-child(4) { width: 8%; text-align: right; }
-    .machinery-table th:nth-child(5), .machinery-table td:nth-child(5) { width: 11%; }
-    .machinery-table th:nth-child(6), .machinery-table td:nth-child(6) { width: 19%; }
-    .machinery-table th:nth-child(7), .machinery-table td:nth-child(7) { width: 9%; text-align: right; }
-    .machinery-table th:nth-child(8), .machinery-table td:nth-child(8) { width: 17%; }
+    .machinery-table th:nth-child(1), .machinery-table td:nth-child(1) { width: 12%; }
+    .machinery-table th:nth-child(2), .machinery-table td:nth-child(2) { width: 10%; }
+    .machinery-table th:nth-child(3), .machinery-table td:nth-child(3) { width: 8%; text-align: right; }
+    .machinery-table th:nth-child(4), .machinery-table td:nth-child(4) { width: 17%; }
+    .machinery-table th:nth-child(5), .machinery-table td:nth-child(5) { width: 14%; }
+    .machinery-table th:nth-child(6), .machinery-table td:nth-child(6) { width: 8%; text-align: right; }
+    .machinery-table th:nth-child(7), .machinery-table td:nth-child(7) { width: 13%; }
+    .machinery-table th:nth-child(8), .machinery-table td:nth-child(8) { width: 8%; text-align: right; }
     .machinery-table th:nth-child(9), .machinery-table td:nth-child(9) { width: 10%; text-align: right; }
     .active-badge { display: inline-flex; max-width: 100%; align-items: center; gap: 4px; border-radius: 999px; background: #90e0ef; padding: 4px 6px; color: var(--navy); font-size: 10px; font-weight: 800; }
     .active-icon { display: inline-grid; width: 15px; height: 15px; flex: 0 0 15px; place-items: center; border-radius: 50%; background: #fff; color: #287444; font-size: 10px; }
     .inactive-mark { display: inline-block; border-radius: 999px; background: #fae9eb; padding: 4px 7px; color: var(--red); font-size: 10px; font-weight: 800; }
     .machinery-table .receipt-status { max-width: 100%; white-space: normal; }
+    .availability-badge { display: inline-flex; max-width: 100%; align-items: center; gap: 5px; padding: 0; font-size: 12px; font-weight: 750; white-space: nowrap; }
+    .availability-badge.complete, .availability-badge.unknown { color: var(--muted); }
+    .availability-badge.high, .availability-badge.normal { color: #287444; }
+    .availability-badge.warning { color: #b78012; }
+    .availability-badge.danger { color: var(--red); }
+    .availability-icon { font-size: 13px; line-height: 1; }
+    .type-status { display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 850; }
+    .type-status.complete { color: #287444; --type-color: #287444; }
+    .type-status.favor { color: #b78012; --type-color: #b78012; }
+    .type-status.active { color: var(--cyan); --type-color: var(--cyan); }
+    .type-icon { display: inline-grid; width: 18px; height: 18px; flex: 0 0 18px; place-items: center; border-radius: 50%; background: var(--type-color); color: #fff; font-size: 10px; font-weight: 850; line-height: 1; }
     .machinery-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+    .machinery-fund-row td { border-top: 1px solid var(--line); background: #eaf0fb; color: var(--navy); font-weight: 750; }
+    .machinery-fund-toggle { display: inline-flex; align-items: center; gap: 8px; border: 0; background: transparent; padding: 3px 0; color: var(--navy); cursor: pointer; font: inherit; font-weight: 750; text-align: left; }
+    .machinery-fund-toggle:hover { color: var(--red); }
+    .machinery-fund-name { display: flex; align-items: center; gap: 8px; }
+    .machinery-matrix-count { color: var(--muted); font-size: 10px; font-weight: 600; text-align: right; }
+    .machinery-row[hidden], .machinery-fund-row[hidden] { display: none; }
+    .machinery-detail-row td:first-child { padding-left: 28px; }
     .filter-option { border: 1px solid #d8e0e9; border-radius: 8px; background: #fff; padding: 7px 11px; color: var(--navy); cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; }
     .filter-option:hover, .filter-option[aria-pressed="true"] { border-color: var(--cyan); background: #90e0ef; }
+    .filter-option.type-filter { display: inline-flex; align-items: center; gap: 6px; background: #fff; }
+    .filter-option.type-filter.complete { border-color: #7db88a; color: #287444; }
+    .filter-option.type-filter.favor { border-color: #d6b75a; color: #a4770c; }
+    .filter-option.type-filter.active { border-color: var(--cyan); color: var(--cyan); }
+    .filter-option.type-filter.complete:hover, .filter-option.type-filter.complete[aria-pressed="true"] { border-color: #287444; background: #f2faf4; color: #287444; }
+    .filter-option.type-filter.favor:hover, .filter-option.type-filter.favor[aria-pressed="true"] { border-color: #b78012; background: #fffaf0; color: #a4770c; }
+    .filter-option.type-filter.active:hover, .filter-option.type-filter.active[aria-pressed="true"] { border-color: var(--cyan); background: #f0fbfd; color: var(--cyan); }
+    .filter-code { border-left: 1px solid currentColor; padding-left: 6px; font-size: 10px; font-weight: 850; }
+    .machinery-export { display: flex; flex-wrap: wrap; gap: 6px; }
+    .machinery-export-top { display: flex; justify-content: flex-end; gap: 7px; margin: 0 0 10px; }
+    .machinery-export a { text-decoration: none; }
+    .machinery-export .refresh { min-height: 34px; padding: 7px 10px; }
     .filter-icon { width: 13px; height: 13px; margin-right: 4px; vertical-align: -2px; }
     .card.plan-panel { overflow: hidden; padding: 0; }
     .plan-heading { padding: 20px 23px 14px; }
@@ -99,8 +137,22 @@
     .logistics-table tfoot td { border-bottom: 0; background: var(--teal-soft); color: var(--navy); font-weight: 750; }
     .logistics-table tfoot td:nth-child(n+3) { color: var(--red); }
     .logistics-table.machinery-table th, .logistics-table.machinery-table td { text-align: left; white-space: normal; overflow-wrap: anywhere; }
-    .logistics-table.machinery-table th:first-child, .logistics-table.machinery-table td:first-child { width: 9%; text-align: left; }
-    .logistics-table.machinery-table th:nth-child(4), .logistics-table.machinery-table td:nth-child(4), .logistics-table.machinery-table th:nth-child(7), .logistics-table.machinery-table td:nth-child(7), .logistics-table.machinery-table th:nth-child(9), .logistics-table.machinery-table td:nth-child(9) { text-align: right; }
+    .logistics-table.machinery-table th:first-child, .logistics-table.machinery-table td:first-child { width: 12%; text-align: left; }
+    .logistics-table.machinery-table th:nth-child(3), .logistics-table.machinery-table td:nth-child(3), .logistics-table.machinery-table th:nth-child(6), .logistics-table.machinery-table td:nth-child(6), .logistics-table.machinery-table th:nth-child(8), .logistics-table.machinery-table td:nth-child(8), .logistics-table.machinery-table th:nth-child(9), .logistics-table.machinery-table td:nth-child(9) { text-align: right; }
+    #costos .costs-table th, #costos .costs-table td { text-align: left; }
+    #costos .costs-table th:nth-child(1), #costos .costs-table td:nth-child(1) { width: 8%; }
+    #costos .costs-table th:nth-child(2), #costos .costs-table td:nth-child(2) { width: 8%; }
+    #costos .costs-table th:nth-child(3), #costos .costs-table td:nth-child(3) { width: 7%; text-align: right; }
+    #costos .costs-table th:nth-child(4), #costos .costs-table td:nth-child(4) { width: 13%; }
+    #costos .costs-table th:nth-child(5), #costos .costs-table td:nth-child(5) { width: 11%; }
+    #costos .costs-table th:nth-child(6), #costos .costs-table td:nth-child(6) { width: 7%; text-align: right; }
+    #costos .costs-table th:nth-child(7), #costos .costs-table td:nth-child(7) { width: 10%; }
+    #costos .costs-table th:nth-child(8), #costos .costs-table td:nth-child(8) { width: 7%; text-align: right; }
+    #costos .costs-table th:nth-child(9), #costos .costs-table td:nth-child(9) { width: 7%; text-align: right; }
+    #costos .costs-table th:nth-child(10), #costos .costs-table td:nth-child(10) { width: 10%; text-align: right; }
+    #costos .costs-table th:nth-child(11), #costos .costs-table td:nth-child(11) { width: 12%; text-align: right; }
+    #costos .machinery-detail-row td:first-child { padding-left: 14px; }
+    #costos .machinery-detail-row td:nth-child(2) { padding-left: 28px; }
     .expand-button { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; border: 0; background: transparent; color: var(--navy); cursor: pointer; font: inherit; font-weight: 700; padding: 0; text-align: left; }
     .expand-icon { display: inline-grid; width: 22px; height: 22px; flex: 0 0 22px; place-items: center; border-radius: 50%; background: var(--teal-soft); color: var(--red); font-size: 16px; }
     .expanded-row[hidden] { display: none; }
@@ -181,6 +233,9 @@
       .sidebar { position: sticky; inset: auto; width: 100%; flex-direction: row; align-items: center; gap: 10px; padding: 9px 14px; }
       .sidebar-label { display: none; }
       .sidebar nav { display: flex; gap: 5px; overflow-x: auto; }
+      .sidebar-menu-group { display: flex; flex: 0 0 auto; align-items: center; gap: 3px; }
+      .sidebar-subnav { display: flex; align-items: center; gap: 3px; }
+      .sidebar-subitem { margin-left: 0; min-height: 38px; padding-left: 9px; }
       .sidebar-link { min-height: 40px; flex: 0 0 auto; padding: 7px 10px; }
       .page { width: 100%; max-width: none; margin: 0; padding: 22px 14px 40px; }
       .kpis { grid-template-columns: repeat(2, 1fr); }
@@ -190,16 +245,16 @@
       .panel-head { flex-direction: column; align-items: stretch; }
       .panel-tools { justify-content: flex-start; }
       .machinery-table { font-size: 10px; }
-      .machinery-table th:nth-child(1), .machinery-table td:nth-child(1) { width: 16%; }
-      .machinery-table th:nth-child(2), .machinery-table td:nth-child(2) { width: 8%; }
+      .machinery-table th:nth-child(1), .machinery-table td:nth-child(1) { width: 12%; }
+      .machinery-table th:nth-child(2), .machinery-table td:nth-child(2) { width: 10%; }
       .machinery-table th:nth-child(3), .machinery-table td:nth-child(3) { width: 8%; }
-      .machinery-table th:nth-child(4), .machinery-table td:nth-child(4) { width: 8%; }
-      .machinery-table th:nth-child(5), .machinery-table td:nth-child(5) { width: 11%; }
-      .machinery-table th:nth-child(6), .machinery-table td:nth-child(6) { width: 14%; }
-      .machinery-table th:nth-child(7), .machinery-table td:nth-child(7) { width: 8%; }
-      .machinery-table th:nth-child(8), .machinery-table td:nth-child(8) { width: 19%; }
-      .machinery-table th:nth-child(9), .machinery-table td:nth-child(9) { width: 8%; }
-      .logistics-table.machinery-table th:first-child, .logistics-table.machinery-table td:first-child { width: 16%; }
+      .machinery-table th:nth-child(4), .machinery-table td:nth-child(4) { width: 15%; }
+      .machinery-table th:nth-child(5), .machinery-table td:nth-child(5) { width: 13%; }
+      .machinery-table th:nth-child(6), .machinery-table td:nth-child(6) { width: 8%; }
+      .machinery-table th:nth-child(7), .machinery-table td:nth-child(7) { width: 13%; }
+      .machinery-table th:nth-child(8), .machinery-table td:nth-child(8) { width: 9%; }
+      .machinery-table th:nth-child(9), .machinery-table td:nth-child(9) { width: 12%; }
+      .logistics-table.machinery-table th:first-child, .logistics-table.machinery-table td:first-child { width: 12%; }
       .machinery-table .receipt-status { padding: 3px 4px; font-size: 9px; }
       .active-badge { gap: 2px; padding: 3px 4px; font-size: 9px; }
     }
@@ -229,6 +284,11 @@
       .page { margin: 0; }
       .sidebar { display: none; }
       .top-actions { display: none; }
+      .machinery-filter, .machinery-export { display: none; }
+      .machinery-export-top { display: none; }
+      #resumen, #maquinaria, #costos, #plano { display: none !important; }
+      body[data-active-view="maquinaria"] #maquinaria,
+      body[data-active-view="costos"] #costos { display: block !important; }
       .card { box-shadow: none; break-inside: avoid; }
       .logistics-panel { break-inside: auto; }
       .logistics-table { min-width: 0; font-size: 9px; }
@@ -251,7 +311,13 @@
     <p class="sidebar-label">SECCIONES DEL REPORTE</p>
     <nav aria-label="Secciones del reporte">
       <a class="sidebar-link active" href="#resumen"><span class="sidebar-index">01</span><span>Resumen</span></a>
-      <a class="sidebar-link" href="#maquinaria"><span class="sidebar-index">02</span><span>Maquinaria</span></a>
+      <div class="sidebar-menu-group">
+        <button class="sidebar-link sidebar-parent" type="button" data-sidebar-toggle aria-expanded="true" aria-controls="maquinaria-subnav"><span class="sidebar-index">02</span><span>Maquinaria</span><span class="sidebar-caret" aria-hidden="true">&#9662;</span></button>
+        <div class="sidebar-subnav" id="maquinaria-subnav">
+          <a class="sidebar-link sidebar-subitem" href="#maquinaria"><span class="sidebar-index">02.1</span><span>Horas</span></a>
+          <a class="sidebar-link sidebar-subitem" href="#costos"><span class="sidebar-index">02.2</span><span>Costos</span></a>
+        </div>
+      </div>
       <a class="sidebar-link" href="#plano"><span class="sidebar-index">03</span><span>Plano</span></a>
     </nav>
   </aside>
@@ -339,38 +405,57 @@
     </section>
 
     <section class="report-view" id="maquinaria" aria-label="Reporte de maquinaria" hidden>
+      <div class="machinery-export-top" aria-label="Exportar reporte de maquinaria">
+        <a class="refresh" href="{{ url_for('export_machinery_excel') }}">Excel</a>
+        <button class="refresh" type="button" onclick="window.print()">PDF</button>
+      </div>
       <section class="card panel logistics-panel" aria-label="Reporte de maquinaria">
         <div class="panel-head">
           <div class="table-section-heading"><h3>Reporte de maquinaria</h3></div>
           <div class="machinery-filter" role="group" aria-label="Filtrar maquinaria">
             <button class="filter-option" type="button" data-machinery-filter="all" aria-pressed="true">Todos</button>
-            <button class="filter-option" type="button" data-machinery-filter="active" aria-pressed="false"><svg class="filter-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M2 3h12L9.5 8v4l-3 1V8L2 3z" stroke-linejoin="round"/></svg>ACTIVO</button>
+            <button class="filter-option type-filter complete" type="button" data-machinery-filter="COMPLETO" aria-pressed="false">COMPLETO <span class="filter-code">C</span></button>
+            <button class="filter-option type-filter favor" type="button" data-machinery-filter="A FAVOR" aria-pressed="false">A FAVOR <span class="filter-code">F</span></button>
+            <button class="filter-option type-filter active" type="button" data-machinery-filter="ACTIVO" aria-pressed="false">ACTIVO <span class="filter-code">A</span></button>
+            <button class="filter-option" type="button" data-machinery-filter="pending" aria-pressed="false">Pendientes a recepción</button>
           </div>
         </div>
         <div class="logistics-table-wrap">
           <table class="logistics-table machinery-table">
-            <thead><tr><th scope="col">ACTIVO</th><th scope="col">FUNDO</th><th scope="col">UBIGEO</th><th scope="col">NRO ORDEN</th><th scope="col">MAQUINARIA</th><th scope="col">PROVEEDOR</th><th scope="col">CANTIDAD OC</th><th scope="col">ESTADO</th><th scope="col">HORAS EJECUTADAS</th></tr></thead>
+            <thead><tr><th scope="col"></th><th scope="col">ESTADO MAQ</th><th scope="col">NRO ORDEN</th><th scope="col">PROVEEDOR</th><th scope="col">MAQUINARIA</th><th scope="col">HORAS OC</th><th scope="col">ESTADO</th><th scope="col">HORAS EJECUTADAS</th><th scope="col">HORAS DISPONIBLES</th></tr></thead>
             <tbody>
-              {% for item in machinery_report.rows %}
-              <tr data-active="{{ 'true' if item.active else 'false' }}">
-                <td>{% if item.active %}<span class="active-badge" aria-label="Activo"><span class="active-icon" aria-hidden="true">✓</span>A</span>{% else %}<span class="inactive-mark">N.A.</span>{% endif %}</td>
-                <td>{{ item.fund }}</td>
-                <td>{{ item.ubigeo }}</td>
-                <td>{{ item.order_number }}</td>
-                <td>{{ item.machinery }}</td>
-                <td>{{ item.supplier }}</td>
-                <td>{{ item.purchase_quantity }}</td>
-                <td><span class="receipt-status {{ item.receipt_status_kind }}"><span class="receipt-icon" aria-hidden="true">{% if item.receipt_status_kind == 'complete' %}✓{% else %}•{% endif %}</span>{{ item.receipt_status }}{% if item.receipt_status_kind == 'pending' %} {{ item.pending_receipt_quantity }}{% endif %}</span></td>
-                <td>{{ item.decimal_hours }}</td>
-              </tr>
-              {% else %}
-              <tr><td colspan="9">No se encontraron registros con factura vinculada a DRENAJE.</td></tr>
-              {% endfor %}
+          {% for fund, fund_rows in machinery_report.rows|groupby('fund') %}
+          {% set group_id = 'machinery-fund-' ~ loop.index %}
+          <tr class="machinery-fund-row" data-machinery-fund-group data-fund-group-id="{{ group_id }}">
+            <td colspan="9"><button class="machinery-fund-toggle" type="button" aria-expanded="true" onclick="toggleMachineryFund(this)">
+                  <span class="machinery-fund-name"><span class="fund-toggle-icon" aria-hidden="true">−</span><span>FUNDO POR OC: {{ fund }}</span></span>
+                  <span class="machinery-matrix-count">{{ fund_rows|length }} registros</span>
+            </button></td>
+          </tr>
+                    {% for item in fund_rows %}
+                    <tr class="machinery-row machinery-detail-row" data-fund-group-id="{{ group_id }}" data-active="{{ 'true' if item.active else 'false' }}" data-machinery-type="{{ item.machinery_type }}" data-cost-hour="{{ item.cost_per_hour_usd }}" data-total-executed="{{ item.total_executed_usd }}">
+                      <td></td>
+                      <td>{% if item.machinery_type == 'COMPLETO' %}<span class="type-status complete" aria-label="Completo"><span class="type-icon" aria-hidden="true">&#10003;</span>C</span>{% elif item.machinery_type == 'A FAVOR' %}<span class="type-status favor" aria-label="A favor"><span class="type-icon" aria-hidden="true">&#8593;</span>F</span>{% elif item.machinery_type == 'ACTIVO' %}<span class="type-status active" aria-label="Activo"><span class="type-icon" aria-hidden="true">&#10003;</span>A</span>{% else %}<span class="inactive-mark">N.A.</span>{% endif %}</td>
+                      <td>{{ item.order_number }}</td>
+                      <td>{{ item.supplier }}</td>
+                      <td>{{ item.machinery }}</td>
+                      <td>{{ item.purchase_quantity }}</td>
+                      <td><span class="receipt-status {{ item.receipt_status_kind }}"><span class="receipt-icon" aria-hidden="true">{% if item.receipt_status_kind == 'complete' %}✓{% else %}•{% endif %}</span>{{ item.receipt_status }}{% if item.receipt_status_kind == 'pending' %} {{ item.pending_receipt_quantity }}{% endif %}</span></td>
+                      <td>{{ item.decimal_hours }}</td>
+                      <td><span class="availability-badge {{ item.available_hours_kind }}">{% if item.available_hours_kind == 'warning' %}<span class="availability-icon" aria-hidden="true">&#9650;</span>{% elif item.available_hours_kind == 'danger' %}<span class="availability-icon" aria-hidden="true">!</span>{% elif item.available_hours_kind == 'high' or item.available_hours_kind == 'normal' %}<span class="availability-icon" aria-hidden="true">&#10003;</span>{% endif %}{{ item.available_hours }} H</span></td>
+                    </tr>
+                    {% endfor %}
+          
+          {% else %}
+          <tr><td colspan="9" class="panel-subtitle">No se encontraron registros con factura vinculada a DRENAJE.</td></tr>
+          {% endfor %}
             </tbody>
           </table>
         </div>
       </section>
     </section>
+
+    <section class="report-view" id="costos" aria-label="Costos de maquinaria" hidden></section>
 
     <section class="report-view" id="plano" aria-label="Plano de abastecimiento de agua para Palto" hidden>
       <section class="card plan-panel">
@@ -383,20 +468,65 @@
 
   </main>
   <script>
+    function initializeCostosView() {
+      const costView = document.getElementById("costos");
+      const machineryView = document.getElementById("maquinaria");
+      const exportBar = machineryView.querySelector(".machinery-export-top").cloneNode(true);
+      const panel = machineryView.querySelector(".card.panel.logistics-panel").cloneNode(true);
+      const table = panel.querySelector(".machinery-table");
+      const heading = panel.querySelector(".table-section-heading");
+      const title = heading.querySelector("h3");
+      const sectionLabel = document.createElement("p");
+      sectionLabel.className = "machinery-costs-label";
+      sectionLabel.textContent = "Costos";
+      title.textContent = "Maquinaria - Horas | Costos";
+      heading.insertBefore(sectionLabel, title);
+      panel.setAttribute("aria-label", "Maquinaria - Horas | Costos");
+      table.classList.add("costs-table");
+      const headerRow = table.querySelector("thead tr");
+      const costHeader = document.createElement("th");
+      costHeader.scope = "col";
+      costHeader.textContent = "COSTO HORA $";
+      headerRow.appendChild(costHeader);
+      const totalHeader = document.createElement("th");
+      totalHeader.scope = "col";
+      totalHeader.textContent = "TOTAL EJECUTADO";
+      headerRow.appendChild(totalHeader);
+      table.querySelectorAll("tbody tr").forEach((row) => {
+        const spanningCell = row.querySelector("td[colspan]");
+        if (spanningCell) {
+          spanningCell.colSpan = 11;
+          return;
+        }
+        if (!row.hasAttribute("data-active")) return;
+        const costCell = document.createElement("td");
+        costCell.textContent = row.dataset.costHour ? `US$ ${row.dataset.costHour}` : String.fromCharCode(8212);
+        row.appendChild(costCell);
+        const totalCell = document.createElement("td");
+        totalCell.textContent = row.dataset.totalExecuted ? `US$ ${row.dataset.totalExecuted}` : String.fromCharCode(8212);
+        row.appendChild(totalCell);
+      });
+      costView.replaceChildren(exportBar, panel);
+    }
+    initializeCostosView();
     function showReportView(viewId) {
-      const validViews = ["resumen", "maquinaria", "plano"];
+      const validViews = ["resumen", "maquinaria", "costos", "plano"];
       const selectedId = validViews.includes(viewId) ? viewId : "resumen";
+      document.body.dataset.activeView = selectedId;
       document.querySelectorAll(".report-view").forEach((view) => {
         view.hidden = view.id !== selectedId;
       });
-      document.querySelectorAll(".sidebar-link").forEach((link) => {
+      document.querySelectorAll("a.sidebar-link").forEach((link) => {
         const active = link.getAttribute("href") === `#${selectedId}`;
         link.classList.toggle("active", active);
         if (active) link.setAttribute("aria-current", "page");
         else link.removeAttribute("aria-current");
       });
+      document.querySelector(".sidebar-parent").classList.toggle(
+        "active", selectedId === "maquinaria" || selectedId === "costos"
+      );
     }
-    document.querySelectorAll(".sidebar-link").forEach((link) => {
+    document.querySelectorAll("a.sidebar-link").forEach((link) => {
       link.addEventListener("click", (event) => {
         event.preventDefault();
         const viewId = link.getAttribute("href").slice(1);
@@ -404,21 +534,64 @@
         if (window.location.hash !== `#${viewId}`) window.location.hash = viewId;
       });
     });
+    document.querySelector("[data-sidebar-toggle]").addEventListener("click", (event) => {
+      const button = event.currentTarget;
+      const expanded = button.getAttribute("aria-expanded") === "true";
+      button.setAttribute("aria-expanded", String(!expanded));
+      document.getElementById(button.getAttribute("aria-controls")).hidden = expanded;
+    });
     window.addEventListener("hashchange", () => showReportView(window.location.hash.slice(1)));
     showReportView(window.location.hash.slice(1));
     const machineryFilterButtons = document.querySelectorAll("[data-machinery-filter]");
-    const machineryRows = document.querySelectorAll("#maquinaria tbody tr[data-active]");
+    const machineryFundGroups = document.querySelectorAll("#maquinaria tr[data-machinery-fund-group], #costos tr[data-machinery-fund-group]");
+    const machineryExcelLinks = document.querySelectorAll("#maquinaria .machinery-export-top a, #costos .machinery-export-top a");
+    let selectedMachineryFilter = "all";
+    function updateMachineryExcelLinks() {
+      machineryExcelLinks.forEach((link) => {
+        const exportUrl = new URL(link.href, window.location.href);
+        exportUrl.searchParams.set("filtro", selectedMachineryFilter);
+        link.href = exportUrl.toString();
+      });
+    }
     machineryFilterButtons.forEach((button) => {
       button.addEventListener("click", () => {
-        const filter = button.getAttribute("data-machinery-filter");
+        selectedMachineryFilter = button.getAttribute("data-machinery-filter");
         machineryFilterButtons.forEach((option) => {
           option.setAttribute("aria-pressed", String(option === button));
         });
-        machineryRows.forEach((row) => {
-          row.hidden = filter === "active" && row.getAttribute("data-active") !== "true";
-        });
+        applyMachineryFilters();
+        updateMachineryExcelLinks();
       });
     });
+    function applyMachineryFilters() {
+      machineryFundGroups.forEach((group) => {
+        const groupId = group.getAttribute("data-fund-group-id");
+        const groupRecords = [...group.closest(".report-view").querySelectorAll("tbody tr[data-active]")]
+          .filter((row) => row.getAttribute("data-fund-group-id") === groupId);
+        const matchingRecords = groupRecords.filter(matchesMachineryFilter);
+        group.hidden = matchingRecords.length === 0;
+        group.querySelector(".machinery-matrix-count").textContent = `${matchingRecords.length} registros`;
+        const expanded = group.querySelector(".machinery-fund-toggle").getAttribute("aria-expanded") === "true";
+        groupRecords.forEach((row) => { row.hidden = !expanded || !matchesMachineryFilter(row); });
+      });
+    }
+    function matchesMachineryFilter(row) {
+      if (["COMPLETO", "A FAVOR", "ACTIVO"].includes(selectedMachineryFilter)) {
+        return row.getAttribute("data-machinery-type") === selectedMachineryFilter;
+      }
+      if (selectedMachineryFilter === "pending") {
+        return row.querySelector(".receipt-status").classList.contains("pending");
+      }
+      return true;
+    }
+    function toggleMachineryFund(button) {
+      const expanded = button.getAttribute("aria-expanded") === "true";
+      button.setAttribute("aria-expanded", String(!expanded));
+      button.querySelector(".fund-toggle-icon").textContent = expanded ? "+" : "−";
+      applyMachineryFilters();
+    }
+    applyMachineryFilters();
+    updateMachineryExcelLinks();
     function toggleActivityDetails(button) {
       const detailRow = document.getElementById(button.getAttribute("aria-controls"));
       const isExpanded = button.getAttribute("aria-expanded") === "true";

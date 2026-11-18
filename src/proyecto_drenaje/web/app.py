@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import re
 import unicodedata
+from io import BytesIO
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
@@ -10,8 +11,10 @@ from pathlib import Path
 from typing import Any
 from zipfile import BadZipFile
 
-from flask import Flask, render_template
-from openpyxl import load_workbook
+from flask import Flask, render_template, request, send_file
+from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.utils.datetime import from_excel
 from openpyxl.utils.exceptions import InvalidFileException
 
@@ -71,14 +74,18 @@ class LogisticsSummary:
 @dataclass(frozen=True)
 class MachineryLogisticsRow:
     active: bool
+    machinery_type: str
     fund: str
-    ubigeo: str
     order_number: str
     machinery: str
     supplier: str
     purchase_quantity: str
     pending_receipt_quantity: str
     decimal_hours: str
+    cost_per_hour_usd: str
+    total_executed_usd: str
+    available_hours: str
+    available_hours_kind: str
     receipt_status: str
     receipt_status_kind: str
 
@@ -152,6 +159,11 @@ class ReportData:
     has_formula_errors: bool
 
 
+@dataclass(frozen=True)
+class ReportHeader:
+    end_date: str
+
+
 def _number(worksheet: Any, cell: str) -> float:
     value = worksheet[cell].value
     if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -176,6 +188,23 @@ def _text(worksheet: Any, cell: str) -> str:
 def _format_number(value: float, decimals: int = 2) -> str:
     formatted = f"{value:,.{decimals}f}"
     return formatted.replace(",", "_").replace(".", ",").replace("_", ".")
+
+
+def _parse_display_number(value: Any) -> Decimal | None:
+    if value is None:
+        return None
+    text = str(value).strip().replace("US$", "").replace("$", "").replace(" ", "")
+    if not text or text in {"—", "-"}:
+        return None
+    if "," in text and "." in text:
+        text = text.replace(".", "").replace(",", ".")
+    elif "," in text:
+        text = text.replace(",", ".")
+    try:
+        result = Decimal(text)
+    except InvalidOperation:
+        return None
+    return result if result.is_finite() else None
 
 
 def _as_date(value: Any, epoch: datetime) -> date:
@@ -501,7 +530,7 @@ def load_machinery_logistics_report(
         machine_headers: dict[str, int] = {}
         machine_header_row = 0
         required_machine = {
-            "num factura", "ubigeo", "maquinaria", "proveedor", "horas decimales",
+            "num factura", "maquinaria", "proveedor", "horas decimales",
             "tipo maquinaria",
         }
         for row_number, row in enumerate(
@@ -519,7 +548,7 @@ def load_machinery_logistics_report(
                 break
         if not machine_header_row:
             raise ReportDataError(
-                "No se encontraron Num Factura, UBIGEO, Maquinaria, Proveedor y "
+                "No se encontraron Num Factura, Maquinaria, Proveedor y "
                 "HORAS DECIMALES y Tipo Maquinaria en la hoja Data."
             )
 
@@ -535,15 +564,17 @@ def load_machinery_logistics_report(
         }
         required_logistics = {
             "PROYECTO", "ESTADO COSTO", "FUNDO", "NRO ORDEN",
-            "CANTIDAD OC", "CANTIDAD RECEPCIONADA",
+            "CANTIDAD OC", "CANTIDAD RECEPCIONADA", "PRECIO $",
         }
         if not required_logistics.issubset(logistics_headers):
             raise ReportDataError(
                 "BD_LOGISTICO debe incluir PROYECTO, ESTADO COSTO, FUNDO, NRO ORDEN, "
-                "CANTIDAD OC y CANTIDAD RECEPCIONADA."
+                "CANTIDAD OC, CANTIDAD RECEPCIONADA y PRECIO $."
             )
 
-        logistics_by_invoice: dict[Decimal, tuple[str, str, str, str, str, str]] = {}
+        logistics_by_invoice: dict[
+            Decimal, tuple[str, str, str, Decimal | None, str, str, str, Decimal | None]
+        ] = {}
         for row in logistics_rows:
             project = " ".join(str(row[logistics_headers["PROYECTO"]] or "").split()).upper()
             if project != "DRENAJE" and not project.startswith("DRENAJE "):
@@ -559,6 +590,7 @@ def load_machinery_logistics_report(
                 )
             order_quantity_raw = row[logistics_headers["CANTIDAD OC"]]
             received_quantity_raw = row[logistics_headers["CANTIDAD RECEPCIONADA"]]
+            price_per_hour = _numeric_join_key(row[logistics_headers["PRECIO $"]])
             order_quantity = _numeric_join_key(order_quantity_raw)
             received_quantity = _numeric_join_key(received_quantity_raw)
             if (
@@ -578,11 +610,13 @@ def load_machinery_logistics_report(
                 _display_value(row[logistics_headers["FUNDO"]]),
                 _display_value(row[logistics_headers["NRO ORDEN"]]),
                 _format_source_number(order_quantity_raw),
+                order_quantity,
                 _format_quantity(pending_quantity)
                 if pending_quantity is not None
                 else "—",
                 receipt_status,
                 receipt_status_kind,
+                price_per_hour,
             )
 
         grouped_hours: dict[tuple[str, ...], Decimal] = {}
@@ -594,40 +628,72 @@ def load_machinery_logistics_report(
             if invoice_key is None or invoice_key not in logistics_by_invoice:
                 continue
             (
-                fund, order_number, quantity, pending_quantity,
-                receipt_status, receipt_status_kind,
+                fund, order_number, quantity, quantity_value, pending_quantity,
+                receipt_status, receipt_status_kind, price_per_hour,
             ) = logistics_by_invoice[invoice_key]
-            ubigeo = _display_value(row[machine_headers["ubigeo"]])
             machinery = _display_value(row[machine_headers["maquinaria"]])
             supplier = _display_value(row[machine_headers["proveedor"]])
-            active = _normalize_label(row[machine_headers["tipo maquinaria"]]) == "activo"
+            machinery_type = " ".join(
+                str(row[machine_headers["tipo maquinaria"]] or "").split()
+            ).upper()
+            active = machinery_type == "ACTIVO"
             group_key = (
-                active, fund, ubigeo, order_number, machinery, supplier, quantity,
-                pending_quantity, receipt_status, receipt_status_kind,
+                active, machinery_type, fund, order_number, supplier, machinery, quantity, quantity_value,
+                pending_quantity, receipt_status, receipt_status_kind, price_per_hour,
             )
             hours = _numeric_join_key(row[machine_headers["horas decimales"]]) or Decimal(0)
             grouped_hours[group_key] = grouped_hours.get(group_key, Decimal(0)) + hours
 
-        rows = [
-            MachineryLogisticsRow(
+        rows = []
+        for (
+            active, machinery_type, fund, order_number, supplier, machinery, quantity, quantity_value,
+            pending_quantity, receipt_status, receipt_status_kind, price_per_hour,
+        ), hours in sorted(grouped_hours.items(), key=lambda item: item[0]):
+            available = (
+                Decimal(0)
+                if machinery_type == "COMPLETO"
+                else quantity_value - hours
+                if quantity_value is not None
+                else None
+            )
+            if machinery_type == "COMPLETO":
+                available_kind = "complete"
+            elif available is None:
+                available_kind = "unknown"
+            elif available <= Decimal(10):
+                available_kind = "danger"
+            elif available <= Decimal(30):
+                available_kind = "warning"
+            elif available > Decimal(80):
+                available_kind = "high"
+            else:
+                available_kind = "normal"
+
+            rows.append(MachineryLogisticsRow(
                 active=active,
+                machinery_type=machinery_type,
                 fund=fund,
-                ubigeo=ubigeo,
                 order_number=order_number,
                 machinery=machinery,
                 supplier=supplier,
                 purchase_quantity=quantity,
                 pending_receipt_quantity=pending_quantity,
                 decimal_hours=_format_number(float(hours), 2),
+                cost_per_hour_usd=(
+                    _format_number(float(price_per_hour), 2)
+                    if price_per_hour is not None
+                    else ""
+                ),
+                total_executed_usd=(
+                    _format_number(float(price_per_hour * hours), 2)
+                    if price_per_hour is not None
+                    else ""
+                ),
+                available_hours=_format_quantity(available) if available is not None else "—",
+                available_hours_kind=available_kind,
                 receipt_status=receipt_status,
                 receipt_status_kind=receipt_status_kind,
-            )
-            for (
-                active, fund, ubigeo, order_number, machinery, supplier, quantity,
-                pending_quantity, receipt_status, receipt_status_kind,
-            ), hours
-            in sorted(grouped_hours.items(), key=lambda item: item[0])
-        ]
+            ))
 
         return MachineryLogisticsReport(rows=rows)
     finally:
@@ -664,6 +730,57 @@ def _vendor_share(workbook: Any, total_cost: float) -> tuple[str, str]:
         raise ReportDataError("No se pudo calcular la concentración de costo de C&V.")
     share = vendor_cost / total_cost * 100
     return "C&V", _format_number(share, 0)
+
+
+def load_report_header(source_file: Path = SOURCE_FILE) -> ReportHeader:
+    """Get the latest invoice date used by the report header from the current Data sheet."""
+    if not source_file.is_file():
+        raise ReportDataError(f"No se encontró el archivo fuente: {source_file}")
+    try:
+        workbook = load_workbook(source_file, read_only=True, data_only=True)
+    except (BadZipFile, InvalidFileException, OSError) as error:
+        raise ReportDataError(
+            f"No se pudo abrir el libro de maquinaria: {source_file}"
+        ) from error
+
+    try:
+        if "Data" not in workbook.sheetnames:
+            raise ReportDataError("Falta la hoja Data en Maquinaria.xlsx.")
+        worksheet = workbook["Data"]
+        header_row = 0
+        date_column = -1
+        for row_number, row in enumerate(
+            worksheet.iter_rows(min_row=1, max_row=min(15, worksheet.max_row), values_only=True),
+            start=1,
+        ):
+            columns = {
+                _normalize_label(value): index
+                for index, value in enumerate(row)
+                if value is not None
+            }
+            if "fecha factura" in columns:
+                header_row = row_number
+                date_column = columns["fecha factura"]
+                break
+        if not header_row:
+            raise ReportDataError("No se encontró la columna Fecha Factura en la hoja Data.")
+
+        latest_date: date | None = None
+        for row in worksheet.iter_rows(min_row=header_row + 1, values_only=True):
+            raw_date = row[date_column]
+            if raw_date is None:
+                continue
+            try:
+                parsed_date = _as_date(raw_date, workbook.epoch)
+            except ReportDataError:
+                continue
+            if latest_date is None or parsed_date > latest_date:
+                latest_date = parsed_date
+        if latest_date is None:
+            raise ReportDataError("No hay fechas válidas en Data → Fecha Factura.")
+        return ReportHeader(end_date=latest_date.strftime("%d/%m/%Y"))
+    finally:
+        workbook.close()
 
 
 def load_report_data(source_file: Path = SOURCE_FILE) -> ReportData:
@@ -832,7 +949,7 @@ def load_report_data(source_file: Path = SOURCE_FILE) -> ReportData:
 def machinery_report() -> str | tuple[str, int]:
     try:
         logistics = load_logistics_summary()
-        report = load_report_data()
+        report = load_report_header()
         machinery_report_data = load_machinery_logistics_report()
     except ReportDataError as error:
         app.logger.error("No se pudo generar el reporte: %s", error)
@@ -842,6 +959,105 @@ def machinery_report() -> str | tuple[str, int]:
         report=report,
         logistics=logistics,
         machinery_report=machinery_report_data,
+    )
+
+
+@app.get("/exportar/maquinaria.xlsx")
+def export_machinery_excel():
+    try:
+        report = load_machinery_logistics_report()
+    except ReportDataError as error:
+        app.logger.error("No se pudo exportar maquinaria: %s", error)
+        return render_template("error.html", message=str(error)), 503
+
+    selected_filter = request.args.get("filtro", "all").strip().upper()
+    if selected_filter in {"COMPLETO", "A FAVOR", "ACTIVO"}:
+        rows = [item for item in report.rows if item.machinery_type == selected_filter]
+    elif selected_filter == "PENDING":
+        rows = [item for item in report.rows if item.receipt_status_kind == "pending"]
+    else:
+        rows = report.rows
+
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = "Maquinaria"
+    headers = [
+        "FUNDO POR OC", "TIPO MAQUINARIA", "NRO ORDEN", "PROVEEDOR",
+        "MAQUINARIA", "HORAS OC", "ESTADO RECEPCION", "HORAS EJECUTADAS",
+        "HORAS DISPONIBLES", "COSTO HORA $", "TOTAL EJECUTADO",
+    ]
+    worksheet.append(headers)
+    for item in rows:
+        machinery_code = {
+            "COMPLETO": "C",
+            "A FAVOR": "F",
+            "ACTIVO": "A",
+        }.get(item.machinery_type, "N.A.")
+        cost_hour_value = _parse_display_number(item.cost_per_hour_usd)
+        total_executed_value = _parse_display_number(item.total_executed_usd)
+        worksheet.append([
+            item.fund,
+            f"{machinery_code} · {item.machinery_type}",
+            item.order_number,
+            item.supplier,
+            item.machinery,
+            float(_parse_display_number(item.purchase_quantity) or Decimal(0)),
+            item.receipt_status if item.receipt_status_kind == "complete" else (
+                f"{item.receipt_status} {item.pending_receipt_quantity}"
+            ),
+            float(_parse_display_number(item.decimal_hours) or Decimal(0)),
+            float(_parse_display_number(item.available_hours) or Decimal(0)),
+            float(cost_hour_value) if cost_hour_value is not None else None,
+            float(total_executed_value) if total_executed_value is not None else None,
+        ])
+
+    header_fill = PatternFill("solid", fgColor="1A428A")
+    for cell in worksheet[1]:
+        cell.fill = header_fill
+        cell.font = Font(color="FFFFFF", bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    worksheet.row_dimensions[1].height = 32
+    widths = [18, 20, 14, 24, 20, 14, 24, 18, 18, 16, 18]
+    for index, width in enumerate(widths, start=1):
+        worksheet.column_dimensions[chr(64 + index)].width = width
+    worksheet.freeze_panes = "A2"
+    worksheet.auto_filter.ref = worksheet.dimensions
+    if worksheet.max_row > 1:
+        table = Table(displayName="DetalleMaquinaria", ref=worksheet.dimensions)
+        table.tableStyleInfo = TableStyleInfo(
+            name="TableStyleMedium2",
+            showFirstColumn=False,
+            showLastColumn=False,
+            showRowStripes=True,
+            showColumnStripes=False,
+        )
+        worksheet.add_table(table)
+
+    type_colors = {"COMPLETO": "287444", "A FAVOR": "A4770C", "ACTIVO": "00B4D8"}
+    available_colors = {
+        "complete": "627486", "high": "287444", "normal": "287444",
+        "warning": "B78012", "danger": "C1121F", "unknown": "627486",
+    }
+    for row_number, item in enumerate(rows, start=2):
+        worksheet.cell(row_number, 2).font = Font(
+            color=type_colors.get(item.machinery_type, "627486"), bold=True
+        )
+        worksheet.cell(row_number, 9).font = Font(
+            color=available_colors[item.available_hours_kind], bold=True
+        )
+        for column in (6, 8, 9):
+            worksheet.cell(row_number, column).number_format = "#,##0.0#"
+        for column in (10, 11):
+            worksheet.cell(row_number, column).number_format = '"US$ "#,##0.00'
+
+    output = BytesIO()
+    workbook.save(output)
+    output.seek(0)
+    return send_file(
+        output,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name="reporte_maquinaria.xlsx",
     )
 
 
