@@ -933,6 +933,13 @@ def load_water_quality_chart(
 
         return {
             "series": series,
+            "funds": [
+                {
+                    "name": fund,
+                    "color": palette_by_fund.get(fund, fallback_palette)[0],
+                }
+                for fund in funds
+            ],
             "start_date": all_dates[0].strftime("%d/%m/%Y"),
             "end_date": all_dates[-1].strftime("%d/%m/%Y"),
             "dates": [item.isoformat() for item in all_dates],

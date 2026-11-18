@@ -35,16 +35,17 @@
     .chart-head p { margin:4px 0 0; color:var(--muted); font-size:11px; }
     .series-count { flex:0 0 auto; border-radius:999px; background:#eff5f9; padding:5px 9px; color:var(--navy); font-size:10px; font-weight:750; }
     .chart-layout { display:grid; grid-template-columns:minmax(0,1fr) 180px; align-items:center; gap:9px; padding:0 20px 12px 10px; }
-    .chart { display:block; width:100%; height:auto; min-height:300px; overflow:visible; }
+    .chart { display:block; width:100%; height:auto; min-height:440px; overflow:visible; }
     .chart text { fill:#566778; font:11px "Segoe UI",Arial,sans-serif; }
     .chart .axis-title { fill:#35495e; font-size:13px; font-weight:650; }
     .chart .grid-line { stroke:#e0e6eb; stroke-width:1; }
     .chart .axis-line { stroke:#9aa9b5; stroke-width:1.2; }
     .chart .threshold-label { fill:var(--red); font-size:10px; font-weight:750; }
+    .chart .fund-label { font-size:12px; font-weight:800; }
     .legend { display:grid; gap:8px; align-content:center; padding:12px 0; }
     .legend-title { margin:0 0 3px; color:var(--muted); font-size:9px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
     .legend-group { display:grid; gap:1px; min-width:0; }
-    .legend-fund { width:100%; border:0; border-radius:6px; background:#f1f5f8; padding:6px 8px; color:var(--navy); cursor:pointer; font:inherit; font-size:10px; font-weight:800; text-align:left; }
+    .legend-fund { width:100%; border:0; border-left:3px solid var(--fund-color); border-radius:6px; background:color-mix(in srgb, var(--fund-color) 10%, white); padding:6px 8px; color:var(--navy); cursor:pointer; font:inherit; font-size:10px; font-weight:800; text-align:left; }
     .legend-fund:hover, .legend-fund[aria-pressed="false"] { background:#e8edf1; }
     .legend-fund[aria-pressed="false"] { opacity:.5; }
     .legend-item { display:flex; width:100%; align-items:center; gap:8px; border:1px solid transparent; border-radius:7px; background:transparent; padding:6px 7px; color:#465567; cursor:pointer; font:inherit; font-size:11px; text-align:left; }
@@ -68,7 +69,7 @@
       .kpi-value { font-size:20px; }
       .chart-head { padding:17px 15px 7px; }
       .chart-layout { padding:0 5px 10px; }
-      .chart { min-height:230px; }
+      .chart { min-height:360px; }
       .legend { grid-template-columns:repeat(2,minmax(0,1fr)); gap:3px; }
       .chart-foot { flex-direction:column; padding:9px 13px; }
       footer { flex-direction:column; }
@@ -100,16 +101,16 @@
     </section>
     <section class="chart-card" aria-labelledby="chart-title">
       <div class="chart-head">
-        <div><h2 id="chart-title">Comportamiento de calidad de agua</h2><p>CE 1000 diario por poza · seleccione una poza o un fundo en la leyenda.</p></div>
+        <div><h2 id="chart-title">Comportamiento de calidad de agua</h2><p>Fechas compartidas · una franja por fundo · cada línea representa una poza.</p></div>
         <span class="series-count">{{ chart.pond_count }} pozas</span>
       </div>
       <div class="chart-layout">
-        <svg id="quality-chart" class="chart" viewBox="0 0 1120 500" role="img" aria-label="Tendencia diaria de CE 1000 por poza, agrupada por fundo"></svg>
+        <svg id="quality-chart" class="chart" viewBox="0 0 1120 620" role="img" aria-label="Tendencia diaria de CE 1000 por poza, agrupada por fundo"></svg>
         <div class="legend" aria-label="Mostrar u ocultar pozas agrupadas por fundo">
           <p class="legend-title">Fundos y pozas</p>
           {% for fund, fund_series in chart.series|groupby('fund') %}
           <div class="legend-group">
-            <button class="legend-fund" type="button" data-fund-toggle="{{ fund }}" aria-pressed="true">{{ fund }}</button>
+            <button class="legend-fund" type="button" data-fund-toggle="{{ fund }}" style="--fund-color:{{ fund_series[0].color }}" aria-pressed="true">{{ fund }}</button>
             {% for series in fund_series %}
             <button class="legend-item" type="button" data-series-key="{{ series.key }}" aria-pressed="true"><span class="legend-line" style="--series-color:{{ series.color }}"></span><span>{{ series.pond }}</span></button>
             {% endfor %}
@@ -118,7 +119,7 @@
           <div class="legend-limit"><span class="legend-limit-line"></span><span>Umbral máx. {{ "%.2f"|format(chart.threshold_max) }} d/m</span></div>
         </div>
       </div>
-      <div class="chart-foot"><span>Eje Y: <strong>CE 1000 (d/m)</strong></span><span>Umbral máximo de referencia · {{ chart.threshold_note }}</span></div>
+      <div class="chart-foot"><span>Eje Y: <strong>CE 1000 (d/m)</strong> · fundos separados por franja</span><span>Umbral máximo de referencia · {{ chart.threshold_note }}</span></div>
     </section>
     <p class="data-note"><strong>Agregación y calidad:</strong> {{ chart.valid_measurements }} mediciones válidas dentro del rango {{ chart.valid_range }}; se promedian por poza y fecha, y las pozas se agrupan por fundo. {{ chart.chart_note }}</p>
     <footer><span>UNIFRUTTI · GESTIÓN DE RIEGO</span><span>CALIDAD DE AGUA · ANEGAMIENTO</span></footer>
@@ -128,9 +129,11 @@
     const svg = document.getElementById("quality-chart");
     const svgNS = "http://www.w3.org/2000/svg";
     const visibleSeries = new Set(qualityData.series.map((series) => series.key));
-    const plot = { left: 78, top: 28, right: 1088, bottom: 415 };
+    const plot = { left: 112, top: 28, right: 1088, bottom: 540 };
     const chartWidth = 1120;
-    const chartHeight = 500;
+    const chartHeight = 620;
+    const fundGap = 10;
+    const laneHeight = (plot.bottom - plot.top - fundGap * (qualityData.funds.length - 1)) / qualityData.funds.length;
     const allValues = qualityData.series.flatMap((series) => series.points.map((point) => point.value));
     const yMax = Math.max(1.4, Math.ceil(Math.max(...allValues, qualityData.threshold_max) / 0.2) * 0.2);
     const startTime = Date.parse(`${qualityData.dates[0]}T00:00:00Z`);
@@ -139,7 +142,15 @@
       const time = Date.parse(`${isoDate}T00:00:00Z`);
       return plot.left + ((time - startTime) / Math.max(1, endTime - startTime)) * (plot.right - plot.left);
     };
-    const yPosition = (value) => plot.bottom - (value / yMax) * (plot.bottom - plot.top);
+    const fundIndex = (fund) => qualityData.funds.findIndex((item) => item.name === fund);
+    const laneBounds = (index) => {
+      const start = plot.top + index * (laneHeight + fundGap);
+      return { top: start + 8, bottom: start + laneHeight - 8 };
+    };
+    const yPosition = (fund, value) => {
+      const lane = laneBounds(fundIndex(fund));
+      return lane.bottom - (value / yMax) * (lane.bottom - lane.top);
+    };
     function addSvg(name, attributes = {}, parent = svg, text = null) {
       const element = document.createElementNS(svgNS, name);
       Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, String(value)));
@@ -149,30 +160,34 @@
     }
     function drawChart() {
       svg.replaceChildren();
-      const yStep = 0.2;
-      for (let value = 0; value <= yMax + 0.001; value += yStep) {
-        const y = yPosition(value);
-        addSvg("line", { x1: plot.left, y1: y, x2: plot.right, y2: y, class: "grid-line" });
-        addSvg("text", { x: plot.left - 12, y: y + 4, "text-anchor": "end" }, svg, value.toFixed(2));
-      }
+      qualityData.funds.forEach((fund, index) => {
+        const bandTop = plot.top + index * (laneHeight + fundGap);
+        addSvg("rect", { x: 5, y: bandTop, width: plot.right - 5, height: laneHeight, rx: 9, fill: fund.color, "fill-opacity": 0.075 });
+        addSvg("text", { x: 15, y: bandTop + 20, class: "fund-label", fill: fund.color }, svg, fund.name);
+        for (let value = 0; value <= yMax + 0.001; value += 0.2) {
+          const y = yPosition(fund.name, value);
+          addSvg("line", { x1: plot.left, y1: y, x2: plot.right, y2: y, class: "grid-line" });
+          addSvg("text", { x: plot.left - 8, y: y + 4, "text-anchor": "end" }, svg, value.toFixed(1));
+        }
+        const thresholdY = yPosition(fund.name, qualityData.threshold_max);
+        addSvg("line", { x1: plot.left, y1: thresholdY, x2: plot.right, y2: thresholdY, stroke: "#c1121f", "stroke-width": 1.7, "stroke-dasharray": "7 5", opacity: 0.8 });
+        addSvg("text", { x: plot.right - 5, y: thresholdY - 5, class: "threshold-label", "text-anchor": "end" }, svg, qualityData.threshold_max.toFixed(2));
+      });
       const tickIndexes = [...new Set(Array.from({ length: 7 }, (_, i) => Math.round(i * (qualityData.dates.length - 1) / 6)))];
       const dateLabel = new Map();
       qualityData.series.forEach((series) => series.points.forEach((point) => dateLabel.set(point.date, point.label)));
       tickIndexes.forEach((index) => {
         const iso = qualityData.dates[index];
         const x = xPosition(iso);
-        addSvg("line", { x1: x, y1: plot.top, x2: x, y2: plot.bottom, class: "grid-line" });
-        addSvg("text", { x, y: plot.bottom + 23, "text-anchor": "middle" }, svg, (dateLabel.get(iso) || "").slice(0, 5));
+        addSvg("line", { x1: x, y1: plot.top, x2: x, y2: plot.bottom, class: "grid-line", opacity: 0.55 });
+        addSvg("text", { x, y: plot.bottom + 22, "text-anchor": "middle" }, svg, (dateLabel.get(iso) || "").slice(0, 5));
       });
       addSvg("path", { d: `M${plot.left} ${plot.top}V${plot.bottom}H${plot.right}`, class: "axis-line", fill: "none" });
-      addSvg("text", { x: (plot.left + plot.right) / 2, y: chartHeight - 10, class: "axis-title", "text-anchor": "middle" }, svg, "Fecha");
-      addSvg("text", { x: 23, y: (plot.top + plot.bottom) / 2, class: "axis-title", "text-anchor": "middle", transform: `rotate(-90 23 ${(plot.top + plot.bottom) / 2})` }, svg, "CE 1000 (d/m)");
-      const thresholdY = yPosition(qualityData.threshold_max);
-      addSvg("line", { x1: plot.left, y1: thresholdY, x2: plot.right, y2: thresholdY, stroke: "#c1121f", "stroke-width": 2, "stroke-dasharray": "8 6" });
-      addSvg("text", { x: plot.right - 5, y: thresholdY - 7, class: "threshold-label", "text-anchor": "end" }, svg, `Umbral máx. ${qualityData.threshold_max.toFixed(2)}`);
+      addSvg("text", { x: (plot.left + plot.right) / 2, y: chartHeight - 13, class: "axis-title", "text-anchor": "middle" }, svg, "Fecha");
+      addSvg("text", { x: 18, y: 16, class: "axis-title" }, svg, "CE 1000 (d/m)");
 
       qualityData.series.filter((series) => visibleSeries.has(series.key)).forEach((series) => {
-        const coordinates = series.points.map((point) => [xPosition(point.date), yPosition(point.value)]);
+        const coordinates = series.points.map((point) => [xPosition(point.date), yPosition(series.fund, point.value)]);
         const path = coordinates.map(([x, y], index) => `${index ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
         addSvg("path", { d: path, fill: "none", stroke: series.color, "stroke-width": 3, "stroke-linecap": "round", "stroke-linejoin": "round" });
         series.points.forEach((point, index) => {
