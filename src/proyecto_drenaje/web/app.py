@@ -11,7 +11,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 from zipfile import BadZipFile
-
+"""  """
 from flask import Flask, render_template, request, send_file
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -858,11 +858,14 @@ def load_water_quality_chart(
                 threshold_note = str(config_values[note_index]).strip()
 
         visible_index = columns.get("visible")
+        conductivity_index = columns.get("ce u s")
         measurements: dict[str, dict[str, dict[date, list[Decimal]]]] = defaultdict(
             lambda: defaultdict(lambda: defaultdict(list))
         )
+        values_by_fund: dict[str, list[Decimal]] = defaultdict(list)
         all_values: list[Decimal] = []
         invalid_values = 0
+        recovered_values = 0
         corrected_date_values: set[str] = set()
         invalid_dates = 0
         for row in rows:
@@ -885,9 +888,19 @@ def load_water_quality_chart(
             raw_value = row[columns["ce 1000"]]
             value = _numeric_join_key(raw_value)
             if value is None or not valid_min <= value <= valid_max:
-                invalid_values += 1
-                continue
+                # Recover damaged CE 1000 cells from the raw conductivity column.
+                raw_conductivity = (
+                    _numeric_join_key(row[conductivity_index])
+                    if conductivity_index is not None else None
+                )
+                recovered = raw_conductivity / Decimal(1000) if raw_conductivity is not None else None
+                if recovered is None or not valid_min <= recovered <= valid_max:
+                    invalid_values += 1
+                    continue
+                value = recovered
+                recovered_values += 1
             measurements[fund][pond][measurement_date].append(value)
+            values_by_fund[fund].append(value)
             all_values.append(value)
 
         if not all_values:
@@ -917,11 +930,57 @@ def load_water_quality_chart(
                     "key": f"{fund}::{pond}",
                     "fund": fund,
                     "pond": pond,
-                    "color": fund_palette[pond_index % len(fund_palette)],
+                    "color": fund_palette[0],
                     "points": points,
                 })
 
         all_dates = sorted({measurement_date for fund_data in measurements.values() for pond_data in fund_data.values() for measurement_date in pond_data})
+        matrix_columns = [
+            {
+                "fund": item["fund"],
+                "pond": item["pond"],
+                "key": item["key"],
+                "color": item["color"],
+            }
+            for item in series
+        ]
+        matrix_rows = []
+        for measurement_date in all_dates:
+            values = []
+            for column in matrix_columns:
+                daily_values = measurements[column["fund"]][column["pond"]].get(measurement_date)
+                values.append({
+                    "value": _format_number(float(sum(daily_values) / len(daily_values)), 3)
+                    if daily_values else "",
+                    "samples": len(daily_values) if daily_values else 0,
+                })
+            matrix_rows.append({
+                "date": measurement_date.strftime("%d/%m/%Y"),
+                "values": values,
+            })
+        pond_summary = []
+        for column in matrix_columns:
+            pond_values = [
+                value
+                for daily_values in measurements[column["fund"]][column["pond"]].values()
+                for value in daily_values
+            ]
+            pond_summary.append({
+                "average": _format_number(float(sum(pond_values) / len(pond_values)), 3),
+            })
+        fund_summary = []
+        for fund in funds:
+            fund_values = values_by_fund[fund]
+            above_threshold = sum(value > threshold_max for value in fund_values)
+            fund_summary.append({
+                "name": fund,
+                "color": palette_by_fund.get(fund, fallback_palette)[0],
+                "average": _format_number(float(sum(fund_values) / len(fund_values)), 3),
+                "maximum": _format_number(float(max(fund_values)), 3),
+                "above_threshold_pct": _format_number(above_threshold / len(fund_values) * 100, 1),
+                "measurements": len(fund_values),
+                "above_threshold_count": above_threshold,
+            })
         average = sum(all_values) / len(all_values)
         chart_note_parts = [
             f"Se omitieron {invalid_values} valores fuera del rango válido {_format_number(float(valid_min), 1)}–{_format_number(float(valid_max), 1)} d/m."
@@ -933,10 +992,15 @@ def load_water_quality_chart(
 
         return {
             "series": series,
+            "matrix_columns": matrix_columns,
+            "matrix_rows": matrix_rows,
+            "pond_summary": pond_summary,
+            "fund_summary": fund_summary,
             "funds": [
                 {
                     "name": fund,
                     "color": palette_by_fund.get(fund, fallback_palette)[0],
+                    "pond_count": sum(1 for item in series if item["fund"] == fund),
                 }
                 for fund in funds
             ],
@@ -948,6 +1012,7 @@ def load_water_quality_chart(
             "valid_range": f"{_format_number(float(valid_min), 1)}–{_format_number(float(valid_max), 1)} d/m",
             "valid_measurements": len(all_values),
             "invalid_measurements": invalid_values,
+            "recovered_measurements": recovered_values,
             "corrected_dates": len(corrected_date_values),
             "fund_count": len(funds),
             "pond_count": len(series),
