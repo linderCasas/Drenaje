@@ -73,18 +73,27 @@
     .table-section-heading p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
     .logistics-table-wrap { overflow-x: auto; }
     .logistics-table { width: 100%; min-width: 820px; border-collapse: collapse; font-size: 13px; }
-    .logistics-table.machinery-table { width: 100%; min-width: 0; table-layout: fixed; }
-    .machinery-table { width: 100%; min-width: 0; table-layout: fixed; }
-    .machinery-table th, .machinery-table td { text-align: left; white-space: normal; overflow-wrap: anywhere; vertical-align: middle; }
-    .machinery-table th:nth-child(1), .machinery-table td:nth-child(1) { width: 12%; }
-    .machinery-table th:nth-child(2), .machinery-table td:nth-child(2) { width: 10%; }
-    .machinery-table th:nth-child(3), .machinery-table td:nth-child(3) { width: 8%; text-align: right; }
-    .machinery-table th:nth-child(4), .machinery-table td:nth-child(4) { width: 17%; }
-    .machinery-table th:nth-child(5), .machinery-table td:nth-child(5) { width: 14%; }
+    .logistics-table.machinery-table { width: 100%; min-width: 1100px; table-layout: fixed; }
+    .machinery-table { width: 100%; min-width: 1100px; table-layout: fixed; font-size: 12px; }
+    .machinery-table th, .machinery-table td { text-align: left; white-space: normal; overflow-wrap: anywhere; vertical-align: middle; font-size: 12px; }
+    .machinery-table .type-status, .machinery-table .receipt-status, .machinery-table .availability-badge { font-size: inherit; }
+    .machinery-table-legend { display: none; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 14px; margin: 0 0 8px; color: var(--muted); font-size: 12px; line-height: 1.3; }
+    .machinery-legend-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+    .machinery-table th { position: relative; }
+    .column-resize-handle { position: absolute; z-index: 2; top: 0; right: -4px; width: 9px; height: 100%; cursor: col-resize; touch-action: none; user-select: none; }
+    .column-resize-handle::after { position: absolute; top: 20%; right: 4px; bottom: 20%; width: 1px; background: transparent; content: ""; }
+    .column-resize-handle:hover::after, .column-resize-handle:focus-visible::after { width: 2px; background: var(--cyan); }
+    .machinery-total-row td { font-weight: 800; font-variant-numeric: tabular-nums; }
+    .machinery-total-row .machinery-total-hours-oc, .machinery-total-row .machinery-total-hours-executed, .machinery-total-row .machinery-total-hours-available { text-align: right !important; }
+    .machinery-table th:nth-child(1), .machinery-table td:nth-child(1) { width: 10%; }
+    .machinery-table th:nth-child(2), .machinery-table td:nth-child(2) { width: 8%; }
+    .machinery-table th:nth-child(3), .machinery-table td:nth-child(3) { width: 9%; text-align: right; }
+    .machinery-table th:nth-child(4), .machinery-table td:nth-child(4) { width: 14%; }
+    .machinery-table th:nth-child(5), .machinery-table td:nth-child(5) { width: 11%; }
     .machinery-table th:nth-child(6), .machinery-table td:nth-child(6) { width: 8%; text-align: right; }
-    .machinery-table th:nth-child(7), .machinery-table td:nth-child(7) { width: 13%; }
-    .machinery-table th:nth-child(8), .machinery-table td:nth-child(8) { width: 8%; text-align: right; }
-    .machinery-table th:nth-child(9), .machinery-table td:nth-child(9) { width: 10%; text-align: right; }
+    .machinery-table th:nth-child(7), .machinery-table td:nth-child(7) { width: 14%; }
+    .machinery-table th:nth-child(8), .machinery-table td:nth-child(8) { width: 12%; text-align: right; }
+    .machinery-table th:nth-child(9), .machinery-table td:nth-child(9) { width: 14%; text-align: right; }
     .active-badge { display: inline-flex; max-width: 100%; align-items: center; gap: 4px; border-radius: 999px; background: #90e0ef; padding: 4px 6px; color: var(--navy); font-size: 10px; font-weight: 800; }
     .active-icon { display: inline-grid; width: 15px; height: 15px; flex: 0 0 15px; place-items: center; border-radius: 50%; background: #fff; color: #287444; font-size: 10px; }
     .inactive-mark { display: inline-block; border-radius: 999px; background: #fae9eb; padding: 4px 7px; color: var(--red); font-size: 10px; font-weight: 800; }
@@ -137,7 +146,7 @@
     .logistics-table tfoot td { border-bottom: 0; background: var(--teal-soft); color: var(--navy); font-weight: 750; }
     .logistics-table tfoot td:nth-child(n+3) { color: var(--red); }
     .logistics-table.machinery-table th, .logistics-table.machinery-table td { text-align: left; white-space: normal; overflow-wrap: anywhere; }
-    .logistics-table.machinery-table th:first-child, .logistics-table.machinery-table td:first-child { width: 12%; text-align: left; }
+    .logistics-table.machinery-table th:first-child, .logistics-table.machinery-table td:first-child { width: 6%; text-align: left; }
     .logistics-table.machinery-table th:nth-child(3), .logistics-table.machinery-table td:nth-child(3), .logistics-table.machinery-table th:nth-child(6), .logistics-table.machinery-table td:nth-child(6), .logistics-table.machinery-table th:nth-child(8), .logistics-table.machinery-table td:nth-child(8), .logistics-table.machinery-table th:nth-child(9), .logistics-table.machinery-table td:nth-child(9) { text-align: right; }
     #costos .costs-table th, #costos .costs-table td { text-align: left; }
     #costos .costs-table th:nth-child(1), #costos .costs-table td:nth-child(1) { width: 8%; }
@@ -150,7 +159,8 @@
     #costos .costs-table th:nth-child(8), #costos .costs-table td:nth-child(8) { width: 7%; text-align: right; }
     #costos .costs-table th:nth-child(9), #costos .costs-table td:nth-child(9) { width: 7%; text-align: right; }
     #costos .costs-table th:nth-child(10), #costos .costs-table td:nth-child(10) { width: 10%; text-align: right; }
-    #costos .costs-table th:nth-child(11), #costos .costs-table td:nth-child(11) { width: 12%; text-align: right; }
+    #costos .costs-table th:nth-child(11), #costos .costs-table td:nth-child(11) { width: 10%; text-align: right; }
+    #costos .costs-table th:nth-child(12), #costos .costs-table td:nth-child(12) { width: 12%; text-align: right; }
     #costos .machinery-detail-row td:first-child { padding-left: 14px; }
     #costos .machinery-detail-row td:nth-child(2) { padding-left: 28px; }
     .expand-button { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; border: 0; background: transparent; color: var(--navy); cursor: pointer; font: inherit; font-weight: 700; padding: 0; text-align: left; }
@@ -244,18 +254,18 @@
       .topline { align-items: flex-start; flex-direction: column; gap: 12px; }
       .panel-head { flex-direction: column; align-items: stretch; }
       .panel-tools { justify-content: flex-start; }
-      .machinery-table { font-size: 10px; }
-      .machinery-table th:nth-child(1), .machinery-table td:nth-child(1) { width: 12%; }
-      .machinery-table th:nth-child(2), .machinery-table td:nth-child(2) { width: 10%; }
-      .machinery-table th:nth-child(3), .machinery-table td:nth-child(3) { width: 8%; }
-      .machinery-table th:nth-child(4), .machinery-table td:nth-child(4) { width: 15%; }
-      .machinery-table th:nth-child(5), .machinery-table td:nth-child(5) { width: 13%; }
+      .machinery-table, .machinery-table th, .machinery-table td { font-size: 12px; }
+      .machinery-table th:nth-child(1), .machinery-table td:nth-child(1) { width: 10%; }
+      .machinery-table th:nth-child(2), .machinery-table td:nth-child(2) { width: 8%; }
+      .machinery-table th:nth-child(3), .machinery-table td:nth-child(3) { width: 9%; }
+      .machinery-table th:nth-child(4), .machinery-table td:nth-child(4) { width: 14%; }
+      .machinery-table th:nth-child(5), .machinery-table td:nth-child(5) { width: 11%; }
       .machinery-table th:nth-child(6), .machinery-table td:nth-child(6) { width: 8%; }
-      .machinery-table th:nth-child(7), .machinery-table td:nth-child(7) { width: 13%; }
-      .machinery-table th:nth-child(8), .machinery-table td:nth-child(8) { width: 9%; }
-      .machinery-table th:nth-child(9), .machinery-table td:nth-child(9) { width: 12%; }
-      .logistics-table.machinery-table th:first-child, .logistics-table.machinery-table td:first-child { width: 12%; }
-      .machinery-table .receipt-status { padding: 3px 4px; font-size: 9px; }
+      .machinery-table th:nth-child(7), .machinery-table td:nth-child(7) { width: 14%; }
+      .machinery-table th:nth-child(8), .machinery-table td:nth-child(8) { width: 12%; }
+      .machinery-table th:nth-child(9), .machinery-table td:nth-child(9) { width: 14%; }
+      .logistics-table.machinery-table th:first-child, .logistics-table.machinery-table td:first-child { width: 10%; }
+      .machinery-table .receipt-status { padding: 3px 4px; font-size: 12px; }
       .active-badge { gap: 2px; padding: 3px 4px; font-size: 9px; }
     }
     @media (max-width: 520px) {
@@ -293,6 +303,13 @@
       .logistics-panel { break-inside: auto; }
       .logistics-table { min-width: 0; font-size: 9px; }
       .logistics-table th, .logistics-table td { padding: 6px 7px; }
+      .logistics-table-wrap { overflow: visible !important; }
+      .machinery-table, .logistics-table.machinery-table { width: 100% !important; min-width: 0 !important; table-layout: fixed; }
+      .machinery-table col { width: auto !important; }
+      .machinery-table th, .machinery-table td, .machinery-table .type-status, .machinery-table .receipt-status, .machinery-table .availability-badge { padding: 3px 4px; font-size: 8px !important; line-height: 1.2; overflow-wrap: anywhere; }
+      .machinery-table .type-icon, .machinery-table .availability-icon { font-size: 7px; }
+      .machinery-table-legend { display: flex; margin-bottom: 5px; font-size: 8px; }
+      .column-resize-handle { display: none !important; }
       .logistics-table thead { display: table-header-group; }
       .expanded-row[hidden] { display: table-row !important; }
       .expanded-detail { max-height: none; overflow: visible; padding: 5px; }
@@ -421,36 +438,34 @@
             <button class="filter-option" type="button" data-machinery-filter="pending" aria-pressed="false">Pendientes a recepción</button>
           </div>
         </div>
+        <div class="machinery-table-legend" aria-label="Leyenda de estados de maquinaria">
+          <span class="machinery-legend-item"><span class="type-status complete"><span class="type-icon" aria-hidden="true">&#10003;</span>C</span> COMPLETO</span>
+          <span class="machinery-legend-item"><span class="type-status favor"><span class="type-icon" aria-hidden="true">&#8593;</span>F</span> A FAVOR</span>
+          <span class="machinery-legend-item"><span class="type-status active"><span class="type-icon" aria-hidden="true">&#10003;</span>A</span> ACTIVO</span>
+        </div>
         <div class="logistics-table-wrap">
           <table class="logistics-table machinery-table">
-            <thead><tr><th scope="col"></th><th scope="col">ESTADO MAQ</th><th scope="col">NRO ORDEN</th><th scope="col">PROVEEDOR</th><th scope="col">MAQUINARIA</th><th scope="col">HORAS OC</th><th scope="col">ESTADO</th><th scope="col">HORAS EJECUTADAS</th><th scope="col">HORAS DISPONIBLES</th></tr></thead>
+            <thead><tr><th scope="col">FUNDO</th><th scope="col">ESTADO MAQ</th><th scope="col">NRO ORDEN</th><th scope="col">PROVEEDOR</th><th scope="col">MAQUINARIA</th><th scope="col">HORAS OC</th><th scope="col">ESTADO</th><th scope="col">HORAS EJECUTADAS</th><th scope="col">HORAS DISPONIBLES</th></tr></thead>
             <tbody>
-          {% for fund, fund_rows in machinery_report.rows|groupby('fund') %}
-          {% set group_id = 'machinery-fund-' ~ loop.index %}
-          <tr class="machinery-fund-row" data-machinery-fund-group data-fund-group-id="{{ group_id }}">
-            <td colspan="9"><button class="machinery-fund-toggle" type="button" aria-expanded="true" onclick="toggleMachineryFund(this)">
-                  <span class="machinery-fund-name"><span class="fund-toggle-icon" aria-hidden="true">−</span><span>FUNDO POR OC: {{ fund }}</span></span>
-                  <span class="machinery-matrix-count">{{ fund_rows|length }} registros</span>
-            </button></td>
+          {% if machinery_report.rows %}
+          {% for item in machinery_report.rows %}
+          <tr class="machinery-row machinery-detail-row" data-active="{{ 'true' if item.active else 'false' }}" data-machinery-type="{{ item.machinery_type }}" data-hours-oc="{{ item.purchase_quantity }}" data-hours="{{ item.decimal_hours }}" data-hours-available="{{ item.available_hours }}" data-cost-hour="{{ item.cost_per_hour_usd }}" data-total-executed="{{ item.total_executed_usd }}">
+            <td>{{ item.fund }}</td>
+            <td>{% if item.machinery_type == 'COMPLETO' %}<span class="type-status complete" aria-label="Completo"><span class="type-icon" aria-hidden="true">&#10003;</span>C</span>{% elif item.machinery_type == 'A FAVOR' %}<span class="type-status favor" aria-label="A favor"><span class="type-icon" aria-hidden="true">&#8593;</span>F</span>{% elif item.machinery_type == 'ACTIVO' %}<span class="type-status active" aria-label="Activo"><span class="type-icon" aria-hidden="true">&#10003;</span>A</span>{% endif %}</td>
+            <td>{{ item.order_number }}</td>
+            <td>{{ item.supplier }}</td>
+            <td>{{ item.machinery }}</td>
+            <td>{{ item.purchase_quantity }}</td>
+            <td><span class="receipt-status {{ item.receipt_status_kind }}"><span class="receipt-icon" aria-hidden="true">{% if item.receipt_status_kind == 'complete' %}&#10003;{% else %}&#8226;{% endif %}</span>{{ item.receipt_status }}{% if item.receipt_status_kind == 'pending' %} {{ item.pending_receipt_quantity }}{% endif %}</span></td>
+            <td>{{ item.decimal_hours }}</td>
+            <td><span class="availability-badge {{ item.available_hours_kind }}">{% if item.available_hours_kind == 'warning' %}<span class="availability-icon" aria-hidden="true">&#9650;</span>{% elif item.available_hours_kind == 'danger' %}<span class="availability-icon" aria-hidden="true">!</span>{% elif item.available_hours_kind == 'high' or item.available_hours_kind == 'normal' %}<span class="availability-icon" aria-hidden="true">&#10003;</span>{% endif %}{{ item.available_hours }} H</span></td>
           </tr>
-                    {% for item in fund_rows %}
-                    <tr class="machinery-row machinery-detail-row" data-fund-group-id="{{ group_id }}" data-active="{{ 'true' if item.active else 'false' }}" data-machinery-type="{{ item.machinery_type }}" data-cost-hour="{{ item.cost_per_hour_usd }}" data-total-executed="{{ item.total_executed_usd }}">
-                      <td></td>
-                      <td>{% if item.machinery_type == 'COMPLETO' %}<span class="type-status complete" aria-label="Completo"><span class="type-icon" aria-hidden="true">&#10003;</span>C</span>{% elif item.machinery_type == 'A FAVOR' %}<span class="type-status favor" aria-label="A favor"><span class="type-icon" aria-hidden="true">&#8593;</span>F</span>{% elif item.machinery_type == 'ACTIVO' %}<span class="type-status active" aria-label="Activo"><span class="type-icon" aria-hidden="true">&#10003;</span>A</span>{% else %}<span class="inactive-mark">N.A.</span>{% endif %}</td>
-                      <td>{{ item.order_number }}</td>
-                      <td>{{ item.supplier }}</td>
-                      <td>{{ item.machinery }}</td>
-                      <td>{{ item.purchase_quantity }}</td>
-                      <td><span class="receipt-status {{ item.receipt_status_kind }}"><span class="receipt-icon" aria-hidden="true">{% if item.receipt_status_kind == 'complete' %}✓{% else %}•{% endif %}</span>{{ item.receipt_status }}{% if item.receipt_status_kind == 'pending' %} {{ item.pending_receipt_quantity }}{% endif %}</span></td>
-                      <td>{{ item.decimal_hours }}</td>
-                      <td><span class="availability-badge {{ item.available_hours_kind }}">{% if item.available_hours_kind == 'warning' %}<span class="availability-icon" aria-hidden="true">&#9650;</span>{% elif item.available_hours_kind == 'danger' %}<span class="availability-icon" aria-hidden="true">!</span>{% elif item.available_hours_kind == 'high' or item.available_hours_kind == 'normal' %}<span class="availability-icon" aria-hidden="true">&#10003;</span>{% endif %}{{ item.available_hours }} H</span></td>
-                    </tr>
-                    {% endfor %}
-          
+          {% endfor %}
           {% else %}
           <tr><td colspan="9" class="panel-subtitle">No se encontraron registros con factura vinculada a DRENAJE.</td></tr>
-          {% endfor %}
+          {% endif %}
             </tbody>
+            <tfoot><tr class="machinery-total-row"><td colspan="5">TOTAL GENERAL</td><td class="machinery-total-hours-oc">0,00</td><td></td><td class="machinery-total-hours-executed">0,00</td><td class="machinery-total-hours-available">0,00</td></tr></tfoot>
           </table>
         </div>
       </section>
@@ -493,6 +508,10 @@
       totalHeader.scope = "col";
       totalHeader.textContent = "TOTAL EJECUTADO";
       headerRow.appendChild(totalHeader);
+      table.querySelectorAll("tfoot tr").forEach((row) => {
+        row.insertCell(-1);
+        row.insertCell(-1);
+      });
       table.querySelectorAll("tbody tr").forEach((row) => {
         const spanningCell = row.querySelector("td[colspan]");
         if (spanningCell) {
@@ -510,6 +529,65 @@
       costView.replaceChildren(exportBar, panel);
     }
     initializeCostosView();
+    function enableColumnResizing(table) {
+      if (table.dataset.columnsResizable === "true") return;
+      const headerCells = [...table.querySelectorAll("thead th")];
+      let colgroup = table.querySelector("colgroup");
+      if (!colgroup) {
+        colgroup = document.createElement("colgroup");
+        headerCells.forEach(() => colgroup.appendChild(document.createElement("col")));
+        table.insertBefore(colgroup, table.querySelector("thead"));
+      }
+      const columns = [...colgroup.querySelectorAll("col")];
+      const widths = headerCells.map((cell) => cell.getBoundingClientRect().width);
+      widths.forEach((width, index) => { columns[index].style.width = `${width}px`; });
+      table.style.width = `${widths.reduce((sum, width) => sum + width, 0)}px`;
+      headerCells.forEach((header, index) => {
+        const handle = document.createElement("span");
+        handle.className = "column-resize-handle";
+        handle.setAttribute("role", "separator");
+        handle.setAttribute("aria-orientation", "vertical");
+        handle.setAttribute("aria-label", `Cambiar ancho de ${header.textContent.trim() || "columna"}`);
+        handle.setAttribute("tabindex", "0");
+        handle.title = "Arrastra para cambiar el ancho de la columna";
+        const resize = (startWidths, delta) => {
+          const minWidth = 60;
+          if (index < columns.length - 1) {
+            const actualDelta = Math.max(minWidth - startWidths[index], Math.min(delta, startWidths[index + 1] - minWidth));
+            columns[index].style.width = `${startWidths[index] + actualDelta}px`;
+            columns[index + 1].style.width = `${startWidths[index + 1] - actualDelta}px`;
+          } else {
+            const nextWidth = Math.max(minWidth, startWidths[index] + delta);
+            columns[index].style.width = `${nextWidth}px`;
+            table.style.width = `${startWidths.reduce((sum, width, columnIndex) => sum + (columnIndex === index ? nextWidth : width), 0)}px`;
+          }
+        };
+        handle.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+          const startX = event.clientX;
+          const startWidths = columns.map((column) => column.getBoundingClientRect().width);
+          document.body.style.userSelect = "none";
+          const onMove = (moveEvent) => resize(startWidths, moveEvent.clientX - startX);
+          const stop = () => {
+            document.body.style.userSelect = "";
+            document.removeEventListener("pointermove", onMove);
+            document.removeEventListener("pointerup", stop);
+            document.removeEventListener("pointercancel", stop);
+          };
+          document.addEventListener("pointermove", onMove);
+          document.addEventListener("pointerup", stop);
+          document.addEventListener("pointercancel", stop);
+        });
+        handle.addEventListener("keydown", (event) => {
+          if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+          event.preventDefault();
+          const currentWidths = columns.map((column) => column.getBoundingClientRect().width);
+          resize(currentWidths, event.key === "ArrowRight" ? 12 : -12);
+        });
+        header.appendChild(handle);
+      });
+      table.dataset.columnsResizable = "true";
+    }
     function showReportView(viewId) {
       const validViews = ["resumen", "maquinaria", "costos", "plano"];
       const selectedId = validViews.includes(viewId) ? viewId : "resumen";
@@ -526,6 +604,10 @@
       document.querySelector(".sidebar-parent").classList.toggle(
         "active", selectedId === "maquinaria" || selectedId === "costos"
       );
+      if (selectedId === "maquinaria" || selectedId === "costos") {
+        const table = document.querySelector(`#${selectedId} .machinery-table`);
+        if (table) enableColumnResizing(table);
+      }
     }
     document.querySelectorAll("a.sidebar-link").forEach((link) => {
       link.addEventListener("click", (event) => {
@@ -545,52 +627,73 @@
     window.addEventListener("hashchange", () => showReportView(window.location.hash.slice(1)));
     showReportView(window.location.hash.slice(1));
     const machineryFilterButtons = document.querySelectorAll("[data-machinery-filter]");
-    const machineryFundGroups = document.querySelectorAll("#maquinaria tr[data-machinery-fund-group], #costos tr[data-machinery-fund-group]");
     const machineryExcelLinks = document.querySelectorAll("#maquinaria .machinery-export-top a, #costos .machinery-export-top a");
-    let selectedMachineryFilter = "all";
+    let selectedMachineryFilters = new Set(["all"]);
     function updateMachineryExcelLinks() {
+      const filterValue = [...selectedMachineryFilters].join(",");
       machineryExcelLinks.forEach((link) => {
         const exportUrl = new URL(link.href, window.location.href);
-        exportUrl.searchParams.set("filtro", selectedMachineryFilter);
+        exportUrl.searchParams.set("filtro", filterValue);
         link.href = exportUrl.toString();
       });
     }
     machineryFilterButtons.forEach((button) => {
       button.addEventListener("click", () => {
-        selectedMachineryFilter = button.getAttribute("data-machinery-filter");
+        const filter = button.getAttribute("data-machinery-filter");
+        if (["COMPLETO", "A FAVOR", "ACTIVO"].includes(filter)) {
+          selectedMachineryFilters.delete("all");
+          selectedMachineryFilters.delete("pending");
+          if (selectedMachineryFilters.has(filter)) {
+            selectedMachineryFilters.delete(filter);
+          } else {
+            selectedMachineryFilters.add(filter);
+          }
+          if (selectedMachineryFilters.size === 0) {
+            selectedMachineryFilters.add("all");
+          }
+        } else {
+          selectedMachineryFilters = new Set([filter]);
+        }
         machineryFilterButtons.forEach((option) => {
-          option.setAttribute("aria-pressed", String(option === button));
+          option.setAttribute(
+            "aria-pressed",
+            String(selectedMachineryFilters.has(option.getAttribute("data-machinery-filter")))
+          );
         });
         applyMachineryFilters();
         updateMachineryExcelLinks();
       });
     });
     function applyMachineryFilters() {
-      machineryFundGroups.forEach((group) => {
-        const groupId = group.getAttribute("data-fund-group-id");
-        const groupRecords = [...group.closest(".report-view").querySelectorAll("tbody tr[data-active]")]
-          .filter((row) => row.getAttribute("data-fund-group-id") === groupId);
-        const matchingRecords = groupRecords.filter(matchesMachineryFilter);
-        group.hidden = matchingRecords.length === 0;
-        group.querySelector(".machinery-matrix-count").textContent = `${matchingRecords.length} registros`;
-        const expanded = group.querySelector(".machinery-fund-toggle").getAttribute("aria-expanded") === "true";
-        groupRecords.forEach((row) => { row.hidden = !expanded || !matchesMachineryFilter(row); });
+      document.querySelectorAll("#maquinaria tbody tr[data-active], #costos tbody tr[data-active]").forEach((row) => {
+        row.hidden = !matchesMachineryFilter(row);
+      });
+      document.querySelectorAll("#maquinaria .machinery-total-row, #costos .machinery-total-row").forEach((totalRow) => {
+        const table = totalRow.closest("table");
+        const rows = [...table.querySelectorAll("tbody tr[data-hours]")].filter(matchesMachineryFilter);
+        const totalOf = (field) => rows.reduce((sum, row) => sum + parseMachineryNumber(row.dataset[field]), 0);
+        const formatTotal = (value) => value.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        totalRow.querySelector(".machinery-total-hours-oc").textContent = formatTotal(totalOf("hoursOc"));
+        totalRow.querySelector(".machinery-total-hours-executed").textContent = formatTotal(totalOf("hours"));
+        totalRow.querySelector(".machinery-total-hours-available").textContent = formatTotal(totalOf("hoursAvailable"));
       });
     }
+    function parseMachineryNumber(value) {
+      const normalized = String(value || "").replace(/\./g, "").replace(",", ".").replace(/[^0-9.-]/g, "");
+      const parsed = Number(normalized);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
     function matchesMachineryFilter(row) {
-      if (["COMPLETO", "A FAVOR", "ACTIVO"].includes(selectedMachineryFilter)) {
-        return row.getAttribute("data-machinery-type") === selectedMachineryFilter;
+      const selectedTypes = [...selectedMachineryFilters].filter(
+        (filter) => ["COMPLETO", "A FAVOR", "ACTIVO"].includes(filter)
+      );
+      if (selectedTypes.length > 0) {
+        return selectedTypes.includes(row.getAttribute("data-machinery-type"));
       }
-      if (selectedMachineryFilter === "pending") {
+      if (selectedMachineryFilters.has("pending")) {
         return row.querySelector(".receipt-status").classList.contains("pending");
       }
       return true;
-    }
-    function toggleMachineryFund(button) {
-      const expanded = button.getAttribute("aria-expanded") === "true";
-      button.setAttribute("aria-expanded", String(!expanded));
-      button.querySelector(".fund-toggle-icon").textContent = expanded ? "+" : "−";
-      applyMachineryFilters();
     }
     applyMachineryFilters();
     updateMachineryExcelLinks();

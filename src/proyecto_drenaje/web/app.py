@@ -79,8 +79,8 @@ class MachineryLogisticsRow:
     machinery_type: str
     fund: str
     order_number: str
-    machinery: str
     supplier: str
+    machinery: str
     purchase_quantity: str
     pending_receipt_quantity: str
     decimal_hours: str
@@ -245,6 +245,18 @@ def _display_value(value: Any) -> str:
         return str(int(value))
     text = str(value).strip()
     return text or "—"
+
+
+_SUPPLIER_ALIASES = {
+    _normalize_label("HEAVY EQUIPMENT AND SERVICES C & V E.I.R.L."): "C&V",
+    _normalize_label("INGENIERIA Y SERVICIOS MAROFRAN S.A.C."): "Marofram",
+    _normalize_label("GRUPO TRACTOMIN S.A.C."): "Tractomin",
+    _normalize_label("SANTA VICTORIA EQUIPOS Y MAQUINARIAS SRL"): "Santa Victoria",
+}
+
+
+def _short_supplier(value: Any) -> str:
+    return _SUPPLIER_ALIASES.get(_normalize_label(value), _display_value(value))
 
 
 def load_logistics_summary(
@@ -532,8 +544,7 @@ def load_machinery_logistics_report(
         machine_headers: dict[str, int] = {}
         machine_header_row = 0
         required_machine = {
-            "num factura", "maquinaria", "proveedor", "horas decimales",
-            "tipo maquinaria",
+            "num factura", "horas decimales", "activo", "maquinaria",
         }
         for row_number, row in enumerate(
             machinery_sheet.iter_rows(min_row=1, max_row=min(15, machinery_sheet.max_row), values_only=True),
@@ -550,8 +561,8 @@ def load_machinery_logistics_report(
                 break
         if not machine_header_row:
             raise ReportDataError(
-                "No se encontraron Num Factura, Maquinaria, Proveedor y "
-                "HORAS DECIMALES y Tipo Maquinaria en la hoja Data."
+                "No se encontraron Num Factura, HORAS DECIMALES, ACTIVO y "
+                "Maquinaria en la hoja Data."
             )
 
         logistics_sheet = logistics_workbook["BD_LOGISTICO"]
@@ -567,15 +578,16 @@ def load_machinery_logistics_report(
         required_logistics = {
             "PROYECTO", "ESTADO COSTO", "FUNDO", "NRO ORDEN",
             "CANTIDAD OC", "CANTIDAD RECEPCIONADA", "PRECIO $",
+            "PROVEEDOR",
         }
         if not required_logistics.issubset(logistics_headers):
             raise ReportDataError(
                 "BD_LOGISTICO debe incluir PROYECTO, ESTADO COSTO, FUNDO, NRO ORDEN, "
-                "CANTIDAD OC, CANTIDAD RECEPCIONADA y PRECIO $."
+                "CANTIDAD OC, CANTIDAD RECEPCIONADA, PRECIO $ y PROVEEDOR."
             )
 
         logistics_by_invoice: dict[
-            Decimal, tuple[str, str, str, Decimal | None, str, str, str, Decimal | None]
+            Decimal, tuple[str, str, str, str, Decimal | None, str, str, str, Decimal | None]
         ] = {}
         for row in logistics_rows:
             project = " ".join(str(row[logistics_headers["PROYECTO"]] or "").split()).upper()
@@ -611,6 +623,7 @@ def load_machinery_logistics_report(
             logistics_by_invoice[invoice_key] = (
                 _display_value(row[logistics_headers["FUNDO"]]),
                 _display_value(row[logistics_headers["NRO ORDEN"]]),
+                _short_supplier(row[logistics_headers["PROVEEDOR"]]),
                 _format_source_number(order_quantity_raw),
                 order_quantity,
                 _format_quantity(pending_quantity)
@@ -622,34 +635,40 @@ def load_machinery_logistics_report(
             )
 
         grouped_hours: dict[tuple[str, ...], Decimal] = {}
-        machine_iter = machinery_sheet.iter_rows(
+        machine_rows = list(machinery_sheet.iter_rows(
             min_row=machine_header_row + 1, values_only=True
-        )
-        for row in machine_iter:
+        ))
+        valid_machinery_types = {"COMPLETO", "ACTIVO", "A FAVOR"}
+
+        for row in machine_rows:
             invoice_key = _numeric_join_key(row[machine_headers["num factura"]])
             if invoice_key is None or invoice_key not in logistics_by_invoice:
                 continue
             (
-                fund, order_number, quantity, quantity_value, pending_quantity,
-                receipt_status, receipt_status_kind, price_per_hour,
+                fund, order_number, supplier, quantity, quantity_value,
+                pending_quantity, receipt_status, receipt_status_kind, price_per_hour,
             ) = logistics_by_invoice[invoice_key]
             machinery = _display_value(row[machine_headers["maquinaria"]])
-            supplier = _display_value(row[machine_headers["proveedor"]])
             machinery_type = " ".join(
-                str(row[machine_headers["tipo maquinaria"]] or "").split()
+                str(row[machine_headers["activo"]] or "").split()
             ).upper()
+            if machinery_type not in valid_machinery_types:
+                raise ReportDataError(
+                    f"El valor de ACTIVO para Num Factura {invoice_key} debe ser "
+                    "COMPLETO, ACTIVO o A FAVOR."
+                )
             active = machinery_type == "ACTIVO"
             group_key = (
-                active, machinery_type, fund, order_number, supplier, machinery, quantity, quantity_value,
-                pending_quantity, receipt_status, receipt_status_kind, price_per_hour,
+                active, machinery_type, fund, order_number, supplier, machinery, quantity,
+                quantity_value, pending_quantity, receipt_status, receipt_status_kind, price_per_hour,
             )
             hours = _numeric_join_key(row[machine_headers["horas decimales"]]) or Decimal(0)
             grouped_hours[group_key] = grouped_hours.get(group_key, Decimal(0)) + hours
 
         rows = []
         for (
-            active, machinery_type, fund, order_number, supplier, machinery, quantity, quantity_value,
-            pending_quantity, receipt_status, receipt_status_kind, price_per_hour,
+            active, machinery_type, fund, order_number, supplier, machinery, quantity,
+            quantity_value, pending_quantity, receipt_status, receipt_status_kind, price_per_hour,
         ), hours in sorted(grouped_hours.items(), key=lambda item: item[0]):
             available = (
                 Decimal(0)
@@ -676,8 +695,8 @@ def load_machinery_logistics_report(
                 machinery_type=machinery_type,
                 fund=fund,
                 order_number=order_number,
-                machinery=machinery,
                 supplier=supplier,
+                machinery=machinery,
                 purchase_quantity=quantity,
                 pending_receipt_quantity=pending_quantity,
                 decimal_hours=_format_number(float(hours), 2),
@@ -1227,10 +1246,15 @@ def export_machinery_excel():
         app.logger.error("No se pudo exportar maquinaria: %s", error)
         return render_template("error.html", message=str(error)), 503
 
-    selected_filter = request.args.get("filtro", "all").strip().upper()
-    if selected_filter in {"COMPLETO", "A FAVOR", "ACTIVO"}:
-        rows = [item for item in report.rows if item.machinery_type == selected_filter]
-    elif selected_filter == "PENDING":
+    selected_filters = {
+        value.strip().upper()
+        for value in request.args.get("filtro", "all").split(",")
+        if value.strip()
+    }
+    selected_types = selected_filters.intersection({"COMPLETO", "A FAVOR", "ACTIVO"})
+    if selected_types:
+        rows = [item for item in report.rows if item.machinery_type in selected_types]
+    elif "PENDING" in selected_filters:
         rows = [item for item in report.rows if item.receipt_status_kind == "pending"]
     else:
         rows = report.rows
@@ -1239,7 +1263,7 @@ def export_machinery_excel():
     worksheet = workbook.active
     worksheet.title = "Maquinaria"
     headers = [
-        "FUNDO POR OC", "TIPO MAQUINARIA", "NRO ORDEN", "PROVEEDOR",
+        "FUNDO", "TIPO MAQUINARIA", "NRO ORDEN", "PROVEEDOR",
         "MAQUINARIA", "HORAS OC", "ESTADO RECEPCION", "HORAS EJECUTADAS",
         "HORAS DISPONIBLES", "COSTO HORA $", "TOTAL EJECUTADO",
     ]
@@ -1249,12 +1273,12 @@ def export_machinery_excel():
             "COMPLETO": "C",
             "A FAVOR": "F",
             "ACTIVO": "A",
-        }.get(item.machinery_type, "N.A.")
+        }.get(item.machinery_type, "")
         cost_hour_value = _parse_display_number(item.cost_per_hour_usd)
         total_executed_value = _parse_display_number(item.total_executed_usd)
         worksheet.append([
             item.fund,
-            f"{machinery_code} · {item.machinery_type}",
+            f"{machinery_code} - {item.machinery_type}" if machinery_code else "",
             item.order_number,
             item.supplier,
             item.machinery,
@@ -1268,19 +1292,44 @@ def export_machinery_excel():
             float(total_executed_value) if total_executed_value is not None else None,
         ])
 
+    total_hours = sum(
+        (_parse_display_number(item.decimal_hours) or Decimal(0) for item in rows),
+        Decimal(0),
+    )
+    total_order_hours = sum(
+        (_parse_display_number(item.purchase_quantity) or Decimal(0) for item in rows),
+        Decimal(0),
+    )
+    total_available_hours = sum(
+        (_parse_display_number(item.available_hours) or Decimal(0) for item in rows),
+        Decimal(0),
+    )
+    total_row = worksheet.max_row + 1
+    worksheet.merge_cells(start_row=total_row, start_column=1, end_row=total_row, end_column=5)
+    worksheet.cell(total_row, 1, "TOTAL GENERAL")
+    worksheet.cell(total_row, 6, float(total_order_hours))
+    worksheet.cell(total_row, 8, float(total_hours))
+    worksheet.cell(total_row, 9, float(total_available_hours))
+    for column in (6, 8, 9):
+        worksheet.cell(total_row, column).number_format = "#,##0.00"
+    for cell in worksheet[total_row]:
+        cell.font = Font(bold=True, color="1A428A")
+        cell.fill = PatternFill("solid", fgColor="EAF0FB")
+
     header_fill = PatternFill("solid", fgColor="1A428A")
     for cell in worksheet[1]:
         cell.fill = header_fill
         cell.font = Font(color="FFFFFF", bold=True)
         cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     worksheet.row_dimensions[1].height = 32
-    widths = [18, 20, 14, 24, 20, 14, 24, 18, 18, 16, 18]
+    widths = [18, 20, 14, 18, 36, 14, 24, 18, 18, 16, 18]
     for index, width in enumerate(widths, start=1):
         worksheet.column_dimensions[chr(64 + index)].width = width
     worksheet.freeze_panes = "A2"
-    worksheet.auto_filter.ref = worksheet.dimensions
-    if worksheet.max_row > 1:
-        table = Table(displayName="DetalleMaquinaria", ref=worksheet.dimensions)
+    data_last_row = total_row - 1
+    worksheet.auto_filter.ref = f"A1:K{data_last_row}"
+    if data_last_row > 1:
+        table = Table(displayName="DetalleMaquinaria", ref=f"A1:K{data_last_row}")
         table.tableStyleInfo = TableStyleInfo(
             name="TableStyleMedium2",
             showFirstColumn=False,
