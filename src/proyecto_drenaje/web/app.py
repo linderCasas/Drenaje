@@ -48,6 +48,7 @@ class LogisticsRecord:
     order_number: str
     supplier: str
     total_usd: str
+    total_usd_amount: float
 
 
 @dataclass(frozen=True)
@@ -59,7 +60,23 @@ class ActivityCost:
     executed_usd: str
     available_usd: str
     details: list[LogisticsRecord]
-    group_details_by_fund: bool = False
+    fund_groups: list["FundCost"]
+
+
+@dataclass(frozen=True)
+class FundCost:
+    fund: str
+    details: list[LogisticsRecord]
+    budget_usd: float | None
+    executed_usd: float
+    available_usd: float | None
+
+
+@dataclass(frozen=True)
+class SupplierMachinerySummaryRow:
+    supplier: str
+    machinery: str
+    order_quantity: str
 
 
 @dataclass(frozen=True)
@@ -71,6 +88,8 @@ class LogisticsSummary:
     total_executed_usd: str
     total_available_usd: str
     activity_costs: list[ActivityCost]
+    supplier_machinery_rows: list[SupplierMachinerySummaryRow]
+    total_order_quantity: str
 
 
 @dataclass(frozen=True)
@@ -192,6 +211,11 @@ def _format_number(value: float, decimals: int = 2) -> str:
     return formatted.replace(",", "_").replace(".", ",").replace("_", ".")
 
 
+@app.template_filter("usd_amount")
+def _format_usd_amount(value: float) -> str:
+    return f"US$ {_format_number(float(value))}"
+
+
 def _parse_display_number(value: Any) -> Decimal | None:
     if value is None:
         return None
@@ -287,12 +311,13 @@ def load_logistics_summary(
             if value is not None
         }
         required_columns = {
-            "PROYECTO", "PARTIDA", "FUNDO", "NRO ORDEN", "PROVEEDOR", "TOTAL $"
+            "PROYECTO", "PARTIDA", "FUNDO", "NRO ORDEN", "PROVEEDOR",
+            "ESTADO COSTO", "CANTIDAD OC", "TOTAL $",
         }
         if not required_columns.issubset(columns):
             raise ReportDataError(
                 "BD_LOGISTICO debe incluir PROYECTO, PARTIDA, FUNDO, NRO ORDEN, "
-                "PROVEEDOR y TOTAL $."
+                "PROVEEDOR, ESTADO COSTO, CANTIDAD OC y TOTAL $."
             )
 
         records = 0
@@ -300,6 +325,7 @@ def load_logistics_summary(
         project_labels: set[str] = set()
         partida_totals: dict[str, float] = {}
         records_by_partida: dict[str, list[LogisticsRecord]] = {}
+        logistics_by_invoice: dict[Decimal, float] = {}
         for row in worksheet.iter_rows(min_row=2, values_only=True):
             project_value = row[columns["PROYECTO"]]
             project = " ".join(str(project_value or "").split()).upper()
@@ -314,6 +340,7 @@ def load_logistics_summary(
             partida_totals.setdefault(partida, 0.0)
             records_by_partida.setdefault(partida, [])
             amount = row[columns["TOTAL $"]]
+            amount_number = 0.0
             if amount is None:
                 amount_display = "—"
             else:
@@ -330,12 +357,25 @@ def load_logistics_summary(
                 priced_records += 1
                 amount_display = f"US$ {_format_number(amount_number)}"
 
+            invoice_key = _numeric_join_key(row[columns["ESTADO COSTO"]])
+            if invoice_key is not None:
+                if invoice_key in logistics_by_invoice:
+                    raise ReportDataError(
+                        f"ESTADO COSTO {invoice_key} está duplicado en SeguimientoLogistica "
+                        "para el proyecto DRENAJE."
+                    )
+                raw_quantity = _numeric_join_key(row[columns["CANTIDAD OC"]])
+                logistics_by_invoice[invoice_key] = (
+                    float(raw_quantity) if raw_quantity is not None else 0.0
+                )
+
             records_by_partida[partida].append(
                 LogisticsRecord(
                     fund=fund,
                     order_number=_display_value(row[columns["NRO ORDEN"]]),
                     supplier=_display_value(row[columns["PROVEEDOR"]]),
                     total_usd=amount_display,
+                    total_usd_amount=amount_number,
                 )
             )
 
@@ -359,6 +399,62 @@ def load_logistics_summary(
         ) from error
 
     try:
+        if "Data" not in machinery_workbook.sheetnames:
+            raise ReportDataError("Falta la hoja Data en Maquinaria.xlsx.")
+
+        data_sheet = machinery_workbook["Data"]
+        data_headers: dict[str, int] = {}
+        data_header_row = 0
+        for row_number, row in enumerate(
+            data_sheet.iter_rows(min_row=1, max_row=min(15, data_sheet.max_row), values_only=True),
+            start=1,
+        ):
+            candidates = {
+                _normalize_label(value): index
+                for index, value in enumerate(row)
+                if value is not None
+            }
+            if {"num factura", "proveedor", "maquinaria"}.issubset(candidates):
+                data_headers = candidates
+                data_header_row = row_number
+                break
+        if not data_header_row:
+            raise ReportDataError(
+                "No se encontraron Num Factura, Proveedor y Maquinaria en la hoja Data."
+            )
+
+        grouped_supplier_machinery: dict[
+            tuple[str, str], tuple[str, str, set[Decimal]]
+        ] = {}
+        for row in data_sheet.iter_rows(min_row=data_header_row + 1, values_only=True):
+            invoice_key = _numeric_join_key(row[data_headers["num factura"]])
+            if invoice_key is None or invoice_key not in logistics_by_invoice:
+                continue
+            supplier = _display_value(row[data_headers["proveedor"]])
+            machinery = _display_value(row[data_headers["maquinaria"]])
+            group_key = (_normalize_label(supplier), _normalize_label(machinery))
+            if group_key not in grouped_supplier_machinery:
+                grouped_supplier_machinery[group_key] = (supplier, machinery, set())
+            grouped_supplier_machinery[group_key][2].add(invoice_key)
+
+        supplier_machinery_rows: list[SupplierMachinerySummaryRow] = []
+        total_order_quantity = 0.0
+        for supplier, machinery, invoice_keys in sorted(
+            grouped_supplier_machinery.values(),
+            key=lambda entry: (_normalize_label(entry[0]), _normalize_label(entry[1])),
+        ):
+            quantity = sum(
+                logistics_by_invoice[invoice_key] for invoice_key in invoice_keys
+            )
+            total_order_quantity += quantity
+            supplier_machinery_rows.append(
+                SupplierMachinerySummaryRow(
+                    supplier=supplier,
+                    machinery=machinery,
+                    order_quantity=_format_number(quantity),
+                )
+            )
+
         sheet_name = "Gantt_Drenaje integral E01"
         if sheet_name not in machinery_workbook.sheetnames:
             raise ReportDataError(f"Falta la hoja {sheet_name} en Maquinaria.xlsx.")
@@ -384,6 +480,46 @@ def load_logistics_summary(
                 "No se encontraron ID, ACTIVIDAD y PRESUPUESTO SUB TOTAL (USD) "
                 "en la hoja Gantt_Drenaje integral E01."
             )
+
+        required_fund_columns = {"fundo", "presupuesto sub total usd"}
+        if not required_fund_columns.issubset(gantt_columns):
+            raise ReportDataError(
+                "La hoja Gantt_Drenaje integral E01 debe incluir Fundo y "
+                "PRESUPUESTO SUB TOTAL (USD)."
+            )
+
+        movement_budget_by_fund: dict[str, tuple[str, float]] = {}
+        if "id" in gantt_columns:
+            for row in gantt.iter_rows(min_row=header_row + 1, values_only=True):
+                raw_id = row[gantt_columns["id"]]
+                if isinstance(raw_id, bool) or not isinstance(raw_id, (int, float)):
+                    continue
+                activity_id = round(float(raw_id), 1)
+                if not 3.1 <= activity_id <= 3.6 or not math.isclose(
+                    float(raw_id), activity_id, abs_tol=1e-9
+                ):
+                    continue
+                fund_name = " ".join(
+                    str(row[gantt_columns["fundo"]] or "").split()
+                )
+                if not fund_name:
+                    continue
+                raw_fund_budget = row[gantt_columns["presupuesto sub total usd"]]
+                if isinstance(raw_fund_budget, bool) or not isinstance(
+                    raw_fund_budget, (int, float)
+                ) or not math.isfinite(raw_fund_budget):
+                    raise ReportDataError(
+                        f"El presupuesto del fundo {fund_name} en Movimiento de Tierra "
+                        "no es numérico."
+                    )
+                normalized_fund = _normalize_label(fund_name)
+                existing_fund_budget = movement_budget_by_fund.get(
+                    normalized_fund, (fund_name, 0.0)
+                )
+                movement_budget_by_fund[normalized_fund] = (
+                    existing_fund_budget[0],
+                    existing_fund_budget[1] + float(raw_fund_budget),
+                )
 
         logistics_by_normalized_partida = {
             _normalize_label(partida): (partida, amount)
@@ -440,6 +576,41 @@ def load_logistics_summary(
                 executed_display = f"US$ {_format_number(executed)}"
                 details = records_by_partida.get(partida, [])
 
+            grouped_details: dict[str, list[LogisticsRecord]] = {}
+            for detail in details:
+                grouped_details.setdefault(_normalize_label(detail.fund), []).append(detail)
+            if activity_id == 3:
+                for normalized_fund in movement_budget_by_fund:
+                    grouped_details.setdefault(normalized_fund, [])
+
+            fund_groups: list[FundCost] = []
+            for normalized_fund, fund_details in sorted(grouped_details.items()):
+                fund = movement_budget_by_fund.get(
+                    normalized_fund,
+                    (fund_details[0].fund if fund_details else normalized_fund.title(), 0.0),
+                )[0]
+                fund_executed = sum(
+                    detail.total_usd_amount for detail in fund_details
+                )
+                fund_budget = (
+                    movement_budget_by_fund.get(normalized_fund, ("", 0.0))[1]
+                    if activity_id == 3
+                    else None
+                )
+                fund_groups.append(
+                    FundCost(
+                        fund=fund,
+                        details=fund_details,
+                        budget_usd=fund_budget,
+                        executed_usd=fund_executed,
+                        available_usd=(
+                            fund_budget - fund_executed
+                            if fund_budget is not None
+                            else None
+                        ),
+                    )
+                )
+
             budget = float(raw_budget)
             total_budget += budget
             total_executed += executed
@@ -452,9 +623,7 @@ def load_logistics_summary(
                     executed_usd=executed_display,
                     available_usd=f"US$ {_format_number(budget - executed)}",
                     details=details,
-                    group_details_by_fund=normalized_activity in {
-                        "movimiento de tierra", "movimiento de tierras"
-                    },
+                    fund_groups=fund_groups,
                 )
             )
 
@@ -473,6 +642,8 @@ def load_logistics_summary(
             total_executed_usd=f"US$ {_format_number(total_executed)}",
             total_available_usd=f"US$ {_format_number(total_budget - total_executed)}",
             activity_costs=activity_costs,
+            supplier_machinery_rows=supplier_machinery_rows,
+            total_order_quantity=_format_number(total_order_quantity),
         )
     finally:
         machinery_workbook.close()
@@ -543,9 +714,9 @@ def load_machinery_logistics_report(
         machinery_sheet = machinery_workbook["Data"]
         machine_headers: dict[str, int] = {}
         machine_header_row = 0
-        required_machine = {
-            "num factura", "horas decimales", "activo", "maquinaria",
-        }
+        machine_status_header = ""
+        required_machine = {"num factura", "horas decimales", "maquinaria"}
+        status_header_options = ("activo", "tipo maquinaria")
         for row_number, row in enumerate(
             machinery_sheet.iter_rows(min_row=1, max_row=min(15, machinery_sheet.max_row), values_only=True),
             start=1,
@@ -556,13 +727,18 @@ def load_machinery_logistics_report(
                 if value is not None
             }
             if required_machine.issubset(candidates):
-                machine_header_row = row_number
-                machine_headers = candidates
-                break
+                machine_status_header = next(
+                    (name for name in status_header_options if name in candidates),
+                    "",
+                )
+                if machine_status_header:
+                    machine_header_row = row_number
+                    machine_headers = candidates
+                    break
         if not machine_header_row:
             raise ReportDataError(
-                "No se encontraron Num Factura, HORAS DECIMALES, ACTIVO y "
-                "Maquinaria en la hoja Data."
+                "No se encontraron Num Factura, HORAS DECIMALES, Maquinaria y "
+                "ACTIVO o Tipo Maquinaria en la hoja Data."
             )
 
         logistics_sheet = logistics_workbook["BD_LOGISTICO"]
@@ -650,7 +826,7 @@ def load_machinery_logistics_report(
             ) = logistics_by_invoice[invoice_key]
             machinery = _display_value(row[machine_headers["maquinaria"]])
             machinery_type = " ".join(
-                str(row[machine_headers["activo"]] or "").split()
+                str(row[machine_headers[machine_status_header]] or "").split()
             ).upper()
             if machinery_type not in valid_machinery_types:
                 raise ReportDataError(
@@ -1230,11 +1406,44 @@ def machinery_report() -> str | tuple[str, int]:
     except ReportDataError as error:
         app.logger.error("No se pudo generar el reporte: %s", error)
         return render_template("error.html", message=str(error)), 503
+    total_usd_costos = sum(
+        (
+            (_parse_display_number(item.purchase_quantity) or Decimal(0))
+            * (_parse_display_number(item.cost_per_hour_usd) or Decimal(0))
+            for item in machinery_report_data.rows
+        ),
+        Decimal(0),
+    )
+    total_available_usd_costos = sum(
+        (
+            (_parse_display_number(item.available_hours) or Decimal(0))
+            * (_parse_display_number(item.cost_per_hour_usd) or Decimal(0))
+            for item in machinery_report_data.rows
+        ),
+        Decimal(0),
+    )
+    movement_activity = next(
+        (item for item in logistics.activity_costs if item.activity_id == 3), None
+    )
+    movement_adjustment = None
+    if movement_activity is not None:
+        movement_budget = _parse_display_number(movement_activity.budget_usd) or Decimal(0)
+        movement_executed = _parse_display_number(movement_activity.executed_usd) or Decimal(0)
+        adjusted_executed = movement_executed - total_available_usd_costos
+        movement_adjustment = {
+            "executed": f"US$ {_format_number(float(adjusted_executed))}",
+            "available": f"US$ {_format_number(float(movement_budget - adjusted_executed))}",
+        }
     return render_template(
         "report.html",
         report=report,
         logistics=logistics,
         machinery_report=machinery_report_data,
+        total_usd_costos=f"US$ {_format_number(float(total_usd_costos))}",
+        total_available_usd_costos=(
+            f"US$ {_format_number(float(total_available_usd_costos))}"
+        ),
+        movement_adjustment=movement_adjustment,
     )
 
 
